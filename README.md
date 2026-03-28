@@ -73,19 +73,19 @@ rsync -avz /local/HeadDirection-YourName-2026-03-18/ \
 
 ## 3. Edit paths in the SLURM scripts
 
-Every `.sh` script has an `# ── Paths (EDIT THESE)` section. Update:
+Every `.sh` script has a `# ── Paths (EDIT THESE)` section. Update:
 
-| Variable      | What it is                                       |
-| ------------- | ------------------------------------------------ |
-| `DLC_SIF`     | Full path to `dlc3.sif`                          |
-| `CONFIG`      | Full path to your project's `config.yaml`        |
-| `VIDEO_DIR`   | Directory containing your `.avi` / `.mp4` videos |
-| `SCRIPTS_DIR` | Directory containing the Python runner scripts   |
+| Variable      | What it is                                   |
+| ------------- | -------------------------------------------- |
+| `DLC_SIF`     | Full path to `dlc3.sif`                      |
+| `CONFIG`      | Full path to your project's `config.yaml`    |
+| `VIDEO_DIR`   | Directory containing videos to analyze       |
+| `SCRIPTS_DIR` | Directory containing this package of scripts |
 
 Also update the `--bind` flag so Apptainer can see your data paths:
 
 ```bash
---bind /scratch/user/youruser:/scratch/user/youruser
+--bind /scratch/user/name:/scratch/user/name
 ```
 
 And change `--partition=gpu` to match your cluster's GPU partition name.
@@ -128,17 +128,6 @@ sbatch slurm_analyze_array.sh
 Each array task processes one video on its own GPU(s). This is the fastest
 approach for large datasets.
 
-### Head-direction extraction (CPU)
-
-After video analysis completes:
-
-```bash
-sbatch slurm_head_direction.sh
-```
-
-This reads the `.h5` files and computes head-direction angles + summary
-statistics. No GPU required.
-
 ---
 
 ## 5. Chain jobs with dependencies
@@ -146,20 +135,16 @@ statistics. No GPU required.
 You can chain the pipeline so each stage starts only after the previous
 one succeeds:
 
-```bash
+````bash
 # Step 1: train
 TRAIN_JOB=$(sbatch --parsable slurm_train.sh)
 
 # Step 2: analyse (starts after training completes)
 ANALYZE_JOB=$(sbatch --parsable --dependency=afterok:${TRAIN_JOB} slurm_analyze_array.sh)
 
-# Step 3: head direction (starts after all array tasks complete)
-sbatch --dependency=afterok:${ANALYZE_JOB} slurm_head_direction.sh
-```
-
 ---
 
-## 6. Iteration: refine → retrain
+## 6. Refining and retraining
 
 After inspecting results, go back to your **workstation** to:
 
@@ -200,7 +185,7 @@ cfg['train_settings']['epochs'] = 500
 yaml.dump(cfg, open(p, 'w'), default_flow_style=False, sort_keys=False)
 print('Updated epochs to 500')
 "
-```
+````
 
 **Monitoring:**
 
