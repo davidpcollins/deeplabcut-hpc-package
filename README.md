@@ -8,19 +8,18 @@ using Apptainer containers.
 ## Directory contents
 
 ```
-hpc/
-├── dlc3_nomodels.def            # Apptainer container definition - no cached models
-├── dlc3_withmodels.def          # Apptainer container definition with all available models cached (larger size)
-├── dlc_add_videos.py            # Python: add new videos to project on cluster
-├── dlc_cache_weights.py         # Cache the models you want to use on login node (use with dlc3_nomodels.sif image)
-├── dlc_train.py                 # Python: train + evaluate
-├── dlc_analyze.py               # Python: batch video analysis
-├── dlc_head_direction_batch.py  # Python: head-direction from .h5 files
-├── slurm_train.sh               # SLURM: training (1 GPU)
-├── slurm_analyze.sh             # SLURM: analyse all videos sequentially
-├── slurm_analyze_array.sh       # SLURM: analyse videos in parallel (array job)
-├── slurm_head_direction.sh      # SLURM: head-direction extraction (CPU-only)
-└── README.md                    # this file
+dlc3_nomodels.def            # Apptainer container definition - no cached models
+dlc3_withmodels.def          # Apptainer container definition with all available models cached (larger size)
+dlc_add_videos.py            # Python: add new videos to project on cluster
+dlc_cache_weights.py         # Cache the models you want to use on login node (use with dlc3_nomodels.sif image)
+dlc_train.py                 # Python: train + evaluate
+dlc_analyze.py               # Python: batch video analysis
+dlc_head_direction_batch.py  # Python: head-direction from .h5 files
+slurm_train.sh               # SLURM: training (1 GPU)
+slurm_analyze.sh             # SLURM: analyse all videos sequentially
+slurm_analyze_array.sh       # SLURM: analyse videos in parallel (array job)
+slurm_head_direction.sh      # SLURM: head-direction extraction (CPU-only)
+README.md
 ```
 
 ---
