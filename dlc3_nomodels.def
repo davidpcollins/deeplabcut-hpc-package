@@ -1,0 +1,119 @@
+Bootstrap: docker
+From: nvcr.io/nvidia/pytorch:24.07-py3
+
+%labels
+    Author      YourName
+    Description DeepLabCut 3 (PyTorch) for HPC with NVIDIA GPUs
+    Version     2.0
+
+%post
+    # ── Strategy ────────────────────────────────────────────────────────
+    # DLC 3.0 RC requires numpy<2.  The 24.07 base image ships numpy 1.x
+    # with all compiled extensions (torch, pandas, scipy, pyarrow) built
+    # against the numpy 1.x ABI.  This is the only consistent combo.
+    #
+    # Problem: pickle files created on a numpy-2.x workstation reference
+    # numpy._core (renamed from numpy.core in 2.0).  Loading these on
+    # numpy 1.x raises "No module named numpy._core.numeric".
+    #
+    # Fix: a sitecustomize.py shim that aliases numpy._core → numpy.core
+    # so unpickling works transparently.  No numpy upgrade needed.
+    # ────────────────────────────────────────────────────────────────────
+
+    # ── System packages ──────────────────────────────────────────────────
+    apt-get update && apt-get install -y --no-install-recommends \
+        ffmpeg \
+        libsm6 \
+        libxext6 \
+        libgl1-mesa-glx \
+        && rm -rf /var/lib/apt/lists/*
+
+    # ── Fix OpenCV conflict ──────────────────────────────────────────────
+    pip uninstall -y opencv-python opencv-python-headless opencv-contrib-python \
+        opencv-contrib-python-headless 2>/dev/null || true
+    rm -rf /usr/local/lib/python*/dist-packages/cv2* \
+           /usr/lib/python*/dist-packages/cv2* 2>/dev/null || true
+    pip install --no-cache-dir "opencv-python-headless>=4.8,<4.11"
+
+    # ── DeepLabCut 3 ────────────────────────────────────────────────────
+    pip install --no-cache-dir --pre "deeplabcut[modelzoo]"
+
+    # ── Numpy 2.x pickle compatibility shim ─────────────────────────────
+    # Creates a numpy._core package that re-exports from numpy.core,
+    # so pickle files written with numpy 2.x can be loaded on numpy 1.x.
+    NUMPY_DIR=$(python -c "import numpy, os; print(os.path.dirname(numpy.__file__))")
+    mkdir -p "${NUMPY_DIR}/_core"
+
+    cat > "${NUMPY_DIR}/_core/__init__.py" << 'EOF'
+from numpy.core import *
+from numpy.core import _dtype_ctypes, _internal
+EOF
+
+    cat > "${NUMPY_DIR}/_core/numeric.py" << 'EOF'
+from numpy.core.numeric import *
+from numpy.core.numeric import _frombuffer
+EOF
+
+    cat > "${NUMPY_DIR}/_core/multiarray.py" << 'EOF'
+from numpy.core.multiarray import *
+EOF
+
+    cat > "${NUMPY_DIR}/_core/umath.py" << 'EOF'
+from numpy.core.umath import *
+EOF
+
+    cat > "${NUMPY_DIR}/_core/fromnumeric.py" << 'EOF'
+from numpy.core.fromnumeric import *
+EOF
+
+    cat > "${NUMPY_DIR}/_core/_methods.py" << 'EOF'
+from numpy.core._methods import *
+EOF
+
+    cat > "${NUMPY_DIR}/_core/records.py" << 'EOF'
+from numpy.core.records import *
+EOF
+
+    # Verify the shim works
+    python -c "
+import numpy._core.numeric
+import numpy._core.multiarray
+print('numpy._core shim: OK')
+"
+
+    # ── Extras ──────────────────────────────────────────────────────────
+    pip install --no-cache-dir \
+        ipykernel \
+        jupyter \
+        pyyaml \
+        tables
+
+    # ── Verify install ───────────────────────────────────────────────────
+    python -c "import numpy;      print(f'NumPy   {numpy.__version__} OK')"
+    python -c "import cv2;        print(f'OpenCV  {cv2.__version__} OK')"
+    python -c "import deeplabcut; print(f'DLC     {deeplabcut.__version__} OK')"
+    python -c "import torch;      print(f'PyTorch {torch.__version__}, CUDA: {torch.cuda.is_available()}')"
+
+%environment
+    export LD_LIBRARY_PATH=/usr/local/cuda/lib64:$LD_LIBRARY_PATH
+    export PATH=/usr/local/cuda/bin:$PATH
+    export DLClight=True
+    export MPLBACKEND=Agg
+
+%runscript
+    exec python "$@"
+
+%help
+    DeepLabCut 3 (PyTorch engine) container for HPC clusters.
+    Base: nvcr.io/nvidia/pytorch:24.07-py3 (numpy 1.x + compat shim for 2.x pickles)
+
+    BUILD:
+        apptainer build dlc3.sif dlc3.def
+
+    TEST:
+        apptainer exec --nv dlc3.sif python -c \
+            "import deeplabcut, torch, numpy; \
+             print(deeplabcut.__version__, numpy.__version__, torch.cuda.is_available())"
+
+    RUN:
+        apptainer exec --nv dlc3.sif python my_script.py
