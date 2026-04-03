@@ -33,12 +33,14 @@ mkdir -p logs
 echo "Job ID      : $SLURM_JOB_ID"
 echo "Node        : $(hostname)"
 echo "Start time  : $(date)"
+# ───────────────────────────────────────────────────────────────────
 
 module load apptainer 2>/dev/null || true
 
 # --nv  enables NVIDIA GPU passthrough
-# --bind mounts the filesystem so the container can see your data
-# Check dlc_analyze.py for additional arguments (e.g. --filter)
+# --bind mounts the filesystem so the container can see your data. If HPC has multiple partitions (e.g. /scratch and /home), 
+#   you may need multiple --bind statements to give the container access to all necessary paths.
+# Check dlc_analyze.py for additional arguments.
 apptainer exec --nv \
     --bind /path/to/your/data:/path/to/your/data \
     "$DLC_SIF" \
@@ -46,5 +48,6 @@ apptainer exec --nv \
         --video_dir "$VIDEO_DIR" \
         --videotype "$VIDEOTYPE" \
         --filter
+
 
 echo "End time    : $(date)"

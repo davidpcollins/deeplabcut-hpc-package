@@ -3,18 +3,21 @@
 dlc_analyze.py — Batch-analyse videos with a trained DLC 3 model.
 
 Supports two modes:
-  1) Analyse ALL videos in a directory
+  1) Analyse videos in a directory sequentially
   2) Analyse a specific subset via SLURM array indexing
 
 Usage:
-    # All .avi videos in a directory
-    python dlc_analyze.py /path/to/config.yaml --video_dir /data/videos --videotype .avi
+    # All .mp4 videos in a directory
+    python dlc_analyze.py /path/to/config.yaml --video_dir /data/videos --videotype .mp4
 
     # Mixed video types
-    python dlc_analyze.py /path/to/config.yaml --video_dir /data/videos --videotype .avi .mp4
+    python dlc_analyze.py /path/to/config.yaml --video_dir /data/videos --videotype ".mp4,.avi"
 
     # Single video by SLURM_ARRAY_TASK_ID (for array jobs)
-    python dlc_analyze.py /path/to/config.yaml --video_dir /data/videos --videotype .avi .mp4 --array_mode
+    python dlc_analyze.py /path/to/config.yaml --video_dir /data/videos --videotype ".avi,.mp4" --array_mode
+
+To do:
+- [ ] Add kwargs for filtering
 """
 
 import argparse
@@ -47,9 +50,8 @@ def main():
         help="Directory containing videos"
     )
     parser.add_argument(
-        "--videotype", nargs="+", default=[".mp4"],
-        help="Video extension(s) to search for (default: .mp4). "
-             "Example: --videotype .avi .mp4",
+        "--videotype", default=".mp4",
+        help="Comma-separated string of video extensions, e.g. '.mp4,.avi,.mov' (default: '.mp4') "
     )
     parser.add_argument(
         "--shuffle", type=int, default=1,
@@ -60,16 +62,16 @@ def main():
         help="DLC training set index to use for analysis (default: 0)",
     )
     parser.add_argument(
-        "--filter", action="store_true", default=True,
+        "--filter", action="store_true", default=False,
         help="Apply median filter after analysis (default: True)",
+    )
+    parser.add_argument(
+        "--filter_type", default="median",
+        help="Type of filter to apply (default: 'median', other options: 'arima', 'spline')"
     )
     parser.add_argument(
         "--dynamic_cropping", action="store_true", default=False, 
         help="Enable dynamic cropping to increase speed"
-    )
-    parser.add_argument(
-        "--no-filter", dest="filter", action="store_false",
-        help="Skip median filtering after analysis (default: False)",
     )
     parser.add_argument(
         "--create_video", action="store_true", default=False,
@@ -79,7 +81,15 @@ def main():
         "--array_mode", action="store_true", default=False,
         help="Process a single video indexed by SLURM_ARRAY_TASK_ID",
     )
+    parser.add_argument(
+        "--show_gpu", action="store_true", default=False,
+        help="Show GPU usage information (default: False)",
+    )
     args = parser.parse_args()
+    
+    # Process videotype into a list of extensions
+    videotype = [ext.strip() for ext in args.videotype.split(",") if ext.strip()]
+    args.videotype = videotype
 
     import deeplabcut
     import torch
@@ -120,7 +130,9 @@ def main():
         videos_to_process,
         shuffle=args.shuffle,
         trainingsetindex=args.trainingsetindex,
+        dynamic=(args.dynamic_cropping, 0.5, 10), # the 2nd-3rd args only matter if #1=True
         save_as_csv=True,
+        show_gpu_memory=args.show_gpu,
     )
 
     # ── Filter ──────────────────────────────────────────────────────────
@@ -131,8 +143,7 @@ def main():
             videos_to_process,
             shuffle=args.shuffle,
             trainingsetindex=args.trainingsetindex,
-            filtertype="median", # Can edit this if you want to use a different filter (supported: median, arima, spline)
-            windowlength=5,
+            filtertype=args.filter_type,
         )
 
     # ── Create labelled videos ───────────────────────────────────────────

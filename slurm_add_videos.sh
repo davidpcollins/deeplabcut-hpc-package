@@ -42,7 +42,7 @@ module load apptainer 2>/dev/null || true
 # --bind mounts the filesystem so the container can see your data
 apptainer exec --bind /scratch/user/davcollins:/scratch/user/davcollins \
     "$DLC_SIF" \
-    python "${SCRIPTS_DIR}/dlc_add_videos.py" \
+        python "${SCRIPTS_DIR}/dlc_add_videos.py" \
         --config_path "$CONFIG" \
         --folder_to_add "$TO_ADD"
 

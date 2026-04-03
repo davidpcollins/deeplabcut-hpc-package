@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-dlc_train.py — Full DLC 3 training pipeline for HPC.
+dlc_train.py — DLC 3 model training pipeline for HPC.
 
 Handles everything after labeling: fixes project paths, creates the
 training dataset with SuperAnimal weight initialization, configures
@@ -44,7 +44,6 @@ import os
 import sys
 import yaml
 from pathlib import Path
-
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -242,7 +241,7 @@ Examples:
     )
     setup_group.add_argument(
         "--with_decoder", action="store_true", default=False,
-        help="Use transfer learnin (with_decoder=False) or keypoint fine tuning (True) \
+        help="Use transfer learning (with_decoder=False) or keypoint fine tuning (True) \
             when creating training dataset (default: False)",
     )
     setup_group.add_argument(
@@ -260,6 +259,10 @@ Examples:
     train_group.add_argument(
         "--trainingsetindex", type=int, default=0,
         help="Training-set index (default: 0)",
+    )
+    train_group.add_argument(
+        "--method", type=str, default=None,
+        help="top-down (td) vs bottom-up (bu); default: same as pytorch_config.yaml",
     )
     train_group.add_argument(
         "--epochs", type=int, default=None,
@@ -284,6 +287,18 @@ Examples:
     train_group.add_argument(
         "--detector_epochs", type=int, default=None,
         help="Override detector train_settings.epochs (top-down models)",
+    )
+    train_group.add_argument(
+        "--detector_batch_size", type=int, default=None,
+        help="Override detector train_settings.batch_size (top-down models)",
+    )
+    train_group.add_argument(
+        "--dataloader_workers", type=int, default=None,
+        help="Override train_settings.dataloader_workers to speed up data loading (default: 0)",
+    )
+    train_group.add_argument(
+        "--dataloader_pin_memory", action="store_true", default=False,
+        help="Override train_settings.dataloader_pin_memory to speed up data loading (default: False)",
     )
 
     # ── Misc ───────────────────────────────────────────────────────────
@@ -388,6 +403,11 @@ Examples:
             )
             print(f"  Weight init built: {type(weight_init).__name__}")
 
+            # DLC throws an error if you use superanimal for weight_init with top_down_model so this is a workaround
+            if args.method == "td":
+                print("  Detected method=top-down. Using detector_name for training dataset creation.")
+                args.net_type = "top_down_" + args.net_type
+
             deeplabcut.create_training_dataset(
                 config=args.config_path,
                 num_shuffles=args.num_shuffles,
@@ -477,12 +497,18 @@ Examples:
         print(f"  Pose config: {pt_cfg_path}")
 
         apply_overrides(pt_cfg_path, {
-            "train_settings.epochs":          args.epochs,
-            "train_settings.batch_size":      args.batch_size,
-            "train_settings.display_iters":   args.display_iters,
-            "runner.snapshots.save_epochs":   args.save_epochs,
-            "detector.train_settings.epochs": args.detector_epochs,
-            "runner.eval_interval":           args.eval_interval,
+            "train_settings.epochs":                         args.epochs,
+            "train_settings.batch_size":                     args.batch_size,
+            "train_settings.display_iters":                  args.display_iters,
+            "runner.snapshots.save_epochs":                  args.save_epochs,
+            "detector.train_settings.epochs":                args.detector_epochs,
+            "detector.train_settings.batch_size":            args.detector_batch_size,
+            "runner.eval_interval":                          args.eval_interval,
+            "detector.train_settings.dataloader_workers":    args.dataloader_workers,
+            "detector.train_settings.dataloader_pin_memory": args.dataloader_pin_memory,
+            "train_settings.dataloader_workers":             args.dataloader_workers,
+            "train_settings.dataloader_pin_memory":          args.dataloader_pin_memory,
+
         })
 
     except FileNotFoundError as e:

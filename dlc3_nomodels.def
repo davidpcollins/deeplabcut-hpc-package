@@ -2,7 +2,7 @@ Bootstrap: docker
 From: nvcr.io/nvidia/pytorch:24.07-py3
 
 %labels
-    Author      YourName
+    Author      David Collins <david.collins@ucsf.edu> 
     Description DeepLabCut 3 (PyTorch) for HPC with NVIDIA GPUs
     Version     2.0
 

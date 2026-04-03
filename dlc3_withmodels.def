@@ -1,203 +1,324 @@
 Bootstrap: docker
-From: nvcr.io/nvidia/pytorch:24.07-py3
+From: nvidia/cuda:12.4.1-cudnn-runtime-ubuntu22.04
 
 %labels
-    Author      YourName
-    Description DeepLabCut 3 (PyTorch) for HPC with NVIDIA GPUs
-    Version     2.0
-
-%post
-    # ── Strategy ────────────────────────────────────────────────────────
-    # DLC 3.0 RC requires numpy<2.  The 24.07 base image ships numpy 1.x
-    # with all compiled extensions (torch, pandas, scipy, pyarrow) built
-    # against the numpy 1.x ABI.  This is the only consistent combo.
-    #
-    # Problem: pickle files created on a numpy-2.x workstation reference
-    # numpy._core (renamed from numpy.core in 2.0).  Loading these on
-    # numpy 1.x raises "No module named numpy._core.numeric".
-    #
-    # Fix: a sitecustomize.py shim that aliases numpy._core → numpy.core
-    # so unpickling works transparently.  No numpy upgrade needed.
-    # ────────────────────────────────────────────────────────────────────
-
-    # ── System packages ──────────────────────────────────────────────────
-    apt-get update && apt-get install -y --no-install-recommends \
-        ffmpeg \
-        libsm6 \
-        libxext6 \
-        libgl1-mesa-glx \
-        && rm -rf /var/lib/apt/lists/*
-
-    # ── Fix OpenCV conflict ──────────────────────────────────────────────
-    pip uninstall -y opencv-python opencv-python-headless opencv-contrib-python \
-        opencv-contrib-python-headless 2>/dev/null || true
-    rm -rf /usr/local/lib/python*/dist-packages/cv2* \
-           /usr/lib/python*/dist-packages/cv2* 2>/dev/null || true
-    pip install --no-cache-dir "opencv-python-headless>=4.8,<4.11"
-
-    # ── DeepLabCut 3 ────────────────────────────────────────────────────
-    pip install --no-cache-dir --pre "deeplabcut[modelzoo]"
-
-    # ── Numpy 2.x pickle compatibility shim ─────────────────────────────
-    # Creates a numpy._core package that re-exports from numpy.core,
-    # so pickle files written with numpy 2.x can be loaded on numpy 1.x.
-    NUMPY_DIR=$(python -c "import numpy, os; print(os.path.dirname(numpy.__file__))")
-    mkdir -p "${NUMPY_DIR}/_core"
-
-    cat > "${NUMPY_DIR}/_core/__init__.py" << 'EOF'
-from numpy.core import *
-from numpy.core import _dtype_ctypes, _internal
-EOF
-
-    cat > "${NUMPY_DIR}/_core/numeric.py" << 'EOF'
-from numpy.core.numeric import *
-from numpy.core.numeric import _frombuffer
-EOF
-
-    cat > "${NUMPY_DIR}/_core/multiarray.py" << 'EOF'
-from numpy.core.multiarray import *
-EOF
-
-    cat > "${NUMPY_DIR}/_core/umath.py" << 'EOF'
-from numpy.core.umath import *
-EOF
-
-    cat > "${NUMPY_DIR}/_core/fromnumeric.py" << 'EOF'
-from numpy.core.fromnumeric import *
-EOF
-
-    cat > "${NUMPY_DIR}/_core/_methods.py" << 'EOF'
-from numpy.core._methods import *
-EOF
-
-    cat > "${NUMPY_DIR}/_core/records.py" << 'EOF'
-from numpy.core.records import *
-EOF
-
-    # Verify the shim works
-    python -c "
-import numpy._core.numeric
-import numpy._core.multiarray
-print('numpy._core shim: OK')
-"
-
-    # ── Extras ──────────────────────────────────────────────────────────
-    pip install --no-cache-dir \
-        ipykernel \
-        jupyter \
-        pyyaml \
-        tables
-
-    # ── Pre-download model weights into the container ────────────────────
-    # During %post the container is writable and has internet access.
-    # Downloads are permanently baked into the SIF, so compute nodes
-    # never need to reach the internet.
-    #
-    # timm backbones (ImageNet-pretrained)
-    python -c "
-import timm
-for name in ['resnet50_gn', 'resnet101', 'hrnet_w18', 'hrnet_w32', 'hrnet_w48']:
-    try:
-        m = timm.create_model(name, pretrained=True)
-        del m
-        print(f'  timm {name}: OK')
-    except Exception as e:
-        print(f'  timm {name}: FAILED ({e})')
-"
-
-    # torchvision detectors
-    python -c "
-import torchvision.models.detection as det
-for name, fn in [
-    ('ssdlite320_mobilenet_v3_large', det.ssdlite320_mobilenet_v3_large),
-    ('fasterrcnn_mobilenet_v3_large_fpn', det.fasterrcnn_mobilenet_v3_large_fpn),
-    ('fasterrcnn_resnet50_fpn_v2', det.fasterrcnn_resnet50_fpn_v2),
-]:
-    try:
-        m = fn(weights='DEFAULT')
-        del m
-        print(f'  torchvision {name}: OK')
-    except Exception as e:
-        print(f'  torchvision {name}: FAILED ({e})')
-"
-
-    # SuperAnimal ModelZoo weights — uses DLC's own download pipeline
-    # so files land in exactly the right location inside the container.
-    python -c "
-from deeplabcut.pose_estimation_pytorch.modelzoo.utils import download_super_animal_snapshot
-
-# Download pose model snapshots
-superanimals = {
-    'superanimal_topviewmouse': ['resnet_50', 'hrnet_w32'],
-    'superanimal_quadruped':    ['resnet_50', 'hrnet_w32'],
-}
-for sa_name, models in superanimals.items():
-    for model_name in models:
-        try:
-            download_super_animal_snapshot(sa_name, model_name)
-            print(f'  pose {sa_name}/{model_name}: OK')
-        except Exception as e:
-            print(f'  pose {sa_name}/{model_name}: FAILED ({e})')
-
-# Download detector snapshots (same function, detector model names)
-detectors = {
-    'superanimal_topviewmouse': [
-        'fasterrcnn_mobilenet_v3_large_fpn',
-        'fasterrcnn_resnet50_fpn_v2',
-    ],
-    'superanimal_quadruped': [
-        'fasterrcnn_mobilenet_v3_large_fpn',
-        'fasterrcnn_resnet50_fpn_v2',
-    ],
-}
-for sa_name, dets in detectors.items():
-    for det_name in dets:
-        try:
-            download_super_animal_snapshot(sa_name, det_name)
-            print(f'  detector {sa_name}/{det_name}: OK')
-        except Exception as e:
-            # Detector downloads may use a different function; try dlclibrary
-            try:
-                from dlclibrary.dlcmodelzoo.modelzoo_download import download_huggingface_model
-                import deeplabcut
-                import os
-                ckpt_dir = os.path.join(
-                    os.path.dirname(deeplabcut.__file__),
-                    'modelzoo', 'checkpoints', sa_name,
-                )
-                os.makedirs(ckpt_dir, exist_ok=True)
-                download_huggingface_model(sa_name, ckpt_dir)
-                print(f'  detector {sa_name}/{det_name}: OK (via dlclibrary)')
-            except Exception as e2:
-                print(f'  detector {sa_name}/{det_name}: FAILED ({e2})')
-"
-
-    # ── Verify install ───────────────────────────────────────────────────
-    python -c "import numpy;      print(f'NumPy   {numpy.__version__} OK')"
-    python -c "import cv2;        print(f'OpenCV  {cv2.__version__} OK')"
-    python -c "import deeplabcut; print(f'DLC     {deeplabcut.__version__} OK')"
-    python -c "import torch;      print(f'PyTorch {torch.__version__}, CUDA: {torch.cuda.is_available()}')"
+    Author David Collins <david.collins@ucsf.edu> with assistance from ChatGPT-UCSF Enterprise
+    Description DeepLabCut 3.x production-grade offline HPC image with writable runtime cache fallback
 
 %environment
-    export LD_LIBRARY_PATH=/usr/local/cuda/lib64:$LD_LIBRARY_PATH
-    export PATH=/usr/local/cuda/bin:$PATH
-    export DLClight=True
-    export MPLBACKEND=Agg
+    # Runtime cache policy:
+    #   1) Use $DLC_CACHE_ROOT if the caller sets it
+    #   2) Otherwise prefer $HOME/.cache/deeplabcut when HOME is writable
+    #   3) Otherwise use $TMPDIR/dlc-cache or /tmp/dlc-cache
+    #
+    # The bootstrap helper also copies the baked cache from /opt/dlc-cache-ro
+    # into the writable runtime cache the first time it is used.
+    . /opt/dlc-bin/dlc-cache-bootstrap.sh
+    dlc_cache_bootstrap
+
+%post
+    set -eu
+
+    export DEBIAN_FRONTEND=noninteractive
+
+    apt-get update
+    apt-get install -y python-is-python3
+    apt-get install -y --no-install-recommends \
+        bash \
+        ca-certificates \
+        ffmpeg \
+        git \
+        libglib2.0-0 \
+        libgl1 \
+        libsm6 \
+        libxext6 \
+        libxrender1 \
+        python3 \
+        python3-dev \
+        python3-pip \
+        python3-venv \
+        && rm -rf /var/lib/apt/lists/*
+
+    mkdir -p \
+        /opt/dlc-bin \
+        /opt/dlc-cache-ro/torch/hub/checkpoints \
+        /opt/dlc-cache-ro/huggingface/transformers \
+        /opt/dlc-prime \
+        /opt/dlc-home
+
+    cat > /opt/dlc-bin/dlc-cache-bootstrap.sh <<'SH'
+#!/bin/sh
+set -eu
+
+dlc_cache_bootstrap() {
+    # Caller override wins.
+    if [ -n "${DLC_CACHE_ROOT:-}" ]; then
+        :
+    elif [ -n "${HOME:-}" ] && [ -w "${HOME:-}" ]; then
+        DLC_CACHE_ROOT="${HOME}/.cache/deeplabcut"
+    elif [ -n "${TMPDIR:-}" ] && [ -w "${TMPDIR:-}" ]; then
+        DLC_CACHE_ROOT="${TMPDIR}/dlc-cache"
+    else
+        DLC_CACHE_ROOT="/tmp/dlc-cache"
+    fi
+
+    export DLC_CACHE_ROOT
+    export XDG_CACHE_HOME="${DLC_CACHE_ROOT}"
+    export TORCH_HOME="${DLC_CACHE_ROOT}/torch"
+    export HF_HOME="${DLC_CACHE_ROOT}/huggingface"
+    export TRANSFORMERS_CACHE="${HF_HOME}/transformers"
+    export MPLBACKEND="${MPLBACKEND:-Agg}"
+    export PYTHONUNBUFFERED="${PYTHONUNBUFFERED:-1}"
+
+    mkdir -p \
+        "${TORCH_HOME}/hub/checkpoints" \
+        "${HF_HOME}/transformers"
+
+    # Seed the writable runtime cache once from the baked read-only cache.
+    # This is a best-effort copy; failures fall back to an empty writable cache.
+    baked_root="/opt/dlc-cache-ro"
+    marker="${DLC_CACHE_ROOT}/.seeded_from_image"
+    if [ -d "${baked_root}" ] && [ ! -f "${marker}" ] && [ "${DLC_CACHE_ROOT}" != "${baked_root}" ]; then
+        mkdir -p "${DLC_CACHE_ROOT}"
+        cp -a "${baked_root}/." "${DLC_CACHE_ROOT}/" 2>/dev/null || true
+        : > "${marker}" 2>/dev/null || true
+    fi
+}
+
+# Allow sourcing.
+return 0 2>/dev/null || exit 0
+SH
+    chmod 755 /opt/dlc-bin/dlc-cache-bootstrap.sh
+
+    python3 -m pip install --upgrade pip setuptools wheel
+
+    # Use the current DLC prerelease line. Change this one line when upgrading.
+    # The PyTorch index below uses the CUDA 12.4 wheel family, matching the CUDA runtime base.
+    python3 -m pip install torch torchvision
+
+    python3 -m pip install --pre \
+        "deeplabcut[modelzoo,wandb]==3.0.0rc14" \
+        pandas pyyaml pillow h5py scipy scikit-image matplotlib seaborn opencv-python-headless
+
+    cat > /opt/dlc-prime/prime_deeplabcut_cache.py <<'PY'
+from __future__ import annotations
+
+import os
+import subprocess
+from pathlib import Path
+
+from PIL import Image
+
+# Build-time priming should target the baked read-only cache tree.
+os.environ["DLC_CACHE_ROOT"] = "/opt/dlc-cache-ro"
+os.environ["XDG_CACHE_HOME"] = "/opt/dlc-cache-ro"
+os.environ["TORCH_HOME"] = "/opt/dlc-cache-ro/torch"
+os.environ["HF_HOME"] = "/opt/dlc-cache-ro/huggingface"
+os.environ["TRANSFORMERS_CACHE"] = "/opt/dlc-cache-ro/huggingface/transformers"
+os.environ["MPLBACKEND"] = "Agg"
+
+import torch
+import torchvision
+import deeplabcut
+
+WORK = Path("/opt/dlc-prime")
+VIDEO = WORK / "dummy.mp4"
+FRAME = WORK / "dummy_frame.png"
+WORK.mkdir(parents=True, exist_ok=True)
+
+
+def run(cmd: list[str]) -> None:
+    subprocess.run(cmd, check=True)
+
+
+def log(msg: str) -> None:
+    print(f"[prime] {msg}", flush=True)
+
+
+def skip(msg: str, exc: Exception) -> None:
+    print(f"[skip ] {msg}: {exc}", flush=True)
+
+
+def make_dummy_media() -> None:
+    run([
+        "ffmpeg", "-y",
+        "-f", "lavfi", "-i", "color=c=black:s=128x128:d=1",
+        "-pix_fmt", "yuv420p",
+        str(VIDEO),
+    ])
+    Image.new("RGB", (128, 128), (0, 0, 0)).save(FRAME)
+
+
+def prime_torchvision_weights() -> None:
+    from torchvision.models import (
+        MobileNet_V3_Large_Weights,
+        ResNet101_Weights,
+        ResNet50_Weights,
+    )
+    from torchvision.models.detection import (
+        FasterRCNN_MobileNet_V3_Large_FPN_Weights,
+        FasterRCNN_ResNet50_FPN_V2_Weights,
+        SSDLite320_MobileNet_V3_Large_Weights,
+        fasterrcnn_mobilenet_v3_large_fpn,
+        fasterrcnn_resnet50_fpn_v2,
+        ssdlite320_mobilenet_v3_large,
+    )
+
+    log("priming torchvision classification checkpoints")
+    torchvision.models.resnet50(weights=ResNet50_Weights.DEFAULT)
+    torchvision.models.resnet101(weights=ResNet101_Weights.DEFAULT)
+    torchvision.models.mobilenet_v3_large(weights=MobileNet_V3_Large_Weights.DEFAULT)
+
+    log("priming torchvision detector checkpoints")
+    fasterrcnn_resnet50_fpn_v2(
+        weights=FasterRCNN_ResNet50_FPN_V2_Weights.DEFAULT,
+        weights_backbone=None,
+    )
+    fasterrcnn_mobilenet_v3_large_fpn(
+        weights=FasterRCNN_MobileNet_V3_Large_FPN_Weights.DEFAULT,
+        weights_backbone=None,
+    )
+    ssdlite320_mobilenet_v3_large(
+        weights=SSDLite320_MobileNet_V3_Large_Weights.DEFAULT,
+        weights_backbone=None,
+    )
+
+
+def prime_superanimal_inference() -> None:
+    # Best-effort coverage of the model zoo families documented in DLC 3.x.
+    families = [
+        ("superanimal_quadruped", ["hrnet_w32", "dlcrnet"], ["fasterrcnn_resnet50_fpn_v2", "fasterrcnn_mobilenet_v3_large_fpn", "ssdlite"]),
+        ("superanimal_topviewmouse", ["hrnet_w32", "dlcrnet"], ["fasterrcnn_resnet50_fpn_v2", "fasterrcnn_mobilenet_v3_large_fpn", "ssdlite"]),
+        ("superanimal_humanbody", ["rtmpose_x"], ["fasterrcnn_resnet50_fpn_v2", "fasterrcnn_mobilenet_v3_large_fpn", "ssdlite"]),
+    ]
+
+    for superanimal_name, model_names, detector_names in families:
+        for model_name in model_names:
+            detector_iter = [None] if model_name == "dlcrnet" else detector_names
+            for detector_name in detector_iter:
+                kwargs = {
+                    "videos": [str(VIDEO)],
+                    "superanimal_name": superanimal_name,
+                    "model_name": model_name,
+                    "video_adapt": False,
+                    "dest_folder": str(WORK),
+                }
+                if detector_name is not None:
+                    kwargs["detector_name"] = detector_name
+                label = f"video_inference_superanimal({superanimal_name}, {model_name}, {detector_name})"
+                try:
+                    log(label)
+                    deeplabcut.video_inference_superanimal(**kwargs)
+                except Exception as exc:
+                    skip(label, exc)
+
+
+def prime_registry_introspection() -> None:
+    try:
+        from deeplabcut.pose_estimation_pytorch import available_detectors, available_models
+        models = list(available_models())
+        detectors = list(available_detectors())
+        log(f"available models: {models}")
+        log(f"available detectors: {detectors}")
+    except Exception as exc:
+        skip("available_models/available_detectors", exc)
+        return
+
+    # This is intentionally best-effort. Some registry entries may be aliases,
+    # inference-only, or may require a valid training config to instantiate.
+    # We do not fail the build on those cases.
+    try:
+        from deeplabcut.modelzoo import build_weight_init
+    except Exception as exc:
+        skip("import build_weight_init", exc)
+        return
+
+    dummy_cfg = str(WORK / "dummy-project" / "config.yaml")
+
+    for model in models:
+        if model == "animal_tokenpose_base":
+            continue
+        for detector in [None] + detectors:
+            label = f"build_weight_init({model}, {detector})"
+            try:
+                kwargs = {
+                    "cfg": dummy_cfg,
+                    "super_animal": "superanimal_quadruped",
+                    "model_name": model,
+                    "with_decoder": False,
+                }
+                if detector is not None:
+                    kwargs["detector_name"] = detector
+                log(label)
+                build_weight_init(**kwargs)
+            except Exception as exc:
+                skip(label, exc)
+
+
+def create_dummy_project() -> None:
+    # Use an actual DLC project so transfer-learning / training code paths have
+    # a realistic config file to inspect during priming.
+    try:
+        deeplabcut.create_new_project(
+            project="offline-prime",
+            experimenter="apptainer",
+            videos=[str(VIDEO)],
+            copy_videos=True,
+            multianimal=True,
+            working_directory=str(WORK),
+        )
+    except Exception as exc:
+        skip("create_new_project", exc)
+
+
+def main() -> None:
+    print("DeepLabCut:", getattr(deeplabcut, "__version__", "unknown"), flush=True)
+    make_dummy_media()
+    create_dummy_project()
+    prime_torchvision_weights()
+    prime_superanimal_inference()
+    prime_registry_introspection()
+    print("Priming complete.", flush=True)
+
+
+if __name__ == "__main__":
+    main()
+PY
+
+    python3 /opt/dlc-prime/prime_deeplabcut_cache.py
+
+    # Make the baked cache read-only so the image remains self-contained.
+    chmod -R a-w /opt/dlc-cache-ro /opt/dlc-bin /opt/dlc-prime /opt/dlc-home || true
+
+%test
+    set -eu
+    . /opt/dlc-bin/dlc-cache-bootstrap.sh
+    dlc_cache_bootstrap
+    python3 - <<'PY'
+from __future__ import annotations
+
+import os
+from pathlib import Path
+
+import torch
+from torchvision.models.detection import (
+    FasterRCNN_MobileNet_V3_Large_FPN_Weights,
+    fasterrcnn_mobilenet_v3_large_fpn,
+)
+
+print("DLC_CACHE_ROOT=", os.environ["DLC_CACHE_ROOT"])
+print("TORCH_HOME=", torch.hub.get_dir())
+Path(os.environ["TORCH_HOME"]).mkdir(parents=True, exist_ok=True)
+(Path(os.environ["TORCH_HOME"]) / "write_test").write_text("ok", encoding="utf-8")
+# This should succeed without any network access if the cache bootstrap worked.
+fasterrcnn_mobilenet_v3_large_fpn(
+    weights=FasterRCNN_MobileNet_V3_Large_FPN_Weights.DEFAULT,
+    weights_backbone=None,
+)
+print("smoke_test_ok")
+PY
 
 %runscript
-    exec python "$@"
-
-%help
-    DeepLabCut 3 (PyTorch engine) container for HPC clusters.
-    Base: nvcr.io/nvidia/pytorch:24.07-py3 (numpy 1.x + compat shim for 2.x pickles)
-
-    BUILD:
-        apptainer build dlc3.sif dlc3.def
-
-    TEST:
-        apptainer exec --nv dlc3.sif python -c \
-            "import deeplabcut, torch, numpy; \
-             print(deeplabcut.__version__, numpy.__version__, torch.cuda.is_available())"
-
-    RUN:
-        apptainer exec --nv dlc3.sif python my_script.py
+    . /opt/dlc-bin/dlc-cache-bootstrap.sh
+    dlc_cache_bootstrap
+    exec python3 "$@"

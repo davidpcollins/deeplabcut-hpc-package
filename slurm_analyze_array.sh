@@ -28,7 +28,7 @@ DLC_SIF="/cluster/path/to/apptainer/file.sif"           # Apptainer image
 CONFIG="/cluster/path/to/deeplabcut/config.yaml"        # DLC config
 VIDEO_DIR="/cluster/path/to/all/videos"                 # dir with videos to analyze (can be same as project dir or different)    
 SCRIPTS_DIR="/cluster/path/to/dlc_hpc_package"          # dir with dlc_analyze.py
-VIDEOTYPE=".mp4"                                        # video file extension (e.g. .mp4, .avi)
+VIDEOTYPE=".mp4"                                        # string of comma-separated video extensions, e.g. ".mp4,.avi,.mov"
 # ────────────────────────────────────────────────────────────────────
 
 set -euo pipefail
@@ -38,12 +38,14 @@ echo "Array Job ID : $SLURM_ARRAY_JOB_ID"
 echo "Task ID      : $SLURM_ARRAY_TASK_ID"
 echo "Node         : $(hostname)"
 echo "Start time   : $(date)"
+# ───────────────────────────────────────────────────────────────────
 
 module load apptainer 2>/dev/null || true
 
 # --nv  enables NVIDIA GPU passthrough
-# --bind mounts the filesystem so the container can see your data
-# Check dlc_analyze.py for additional arguments. Must includ --array_mode to run in parralel
+# --bind mounts the filesystem so the container can see your data. If HPC has multiple partitions (e.g. /scratch and /home), 
+#   you may need multiple --bind statements to give the container access to all necessary paths.
+# Check dlc_analyze.py for additional arguments. Must include --array_mode to run in parralel
 apptainer exec --nv \
     --bind /path/to/your/data:/path/to/your/data \
     "$DLC_SIF" \

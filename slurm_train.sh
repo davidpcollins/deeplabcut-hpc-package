@@ -9,7 +9,7 @@
 #SBATCH --error=logs/dlc-train_%j.err       # save error text to logs/dlc-train_JOBID.err
 
 # =====================================================================
-#  DLC 3 — Train network on a single GPU node
+#  DLC 3 — Train network on a GPU node
 # =====================================================================
 #
 #  Submit with:
@@ -35,15 +35,19 @@ echo "Job ID      : $SLURM_JOB_ID"
 echo "Node        : $(hostname)"
 echo "GPUs        : $CUDA_VISIBLE_DEVICES"
 echo "Start time  : $(date)"
+# ───────────────────────────────────────────────────────────────────
 
 # Load Apptainer if it's a module on your cluster
 module load apptainer 2>/dev/null || true
 
 # --nv  enables NVIDIA GPU passthrough
-# --bind mounts the filesystem so the container can see your data
+# --bind mounts the filesystem so the container can see your data. 
+# Need a separate --bind for each mount point (e.g. one for /scratch and one for /home)
 # Check dlc_train.py for additional arguments (e.g. --shuffle, --maxiters)
 apptainer exec --nv \
     --bind /path/to/your/data:/path/to/your/data \
+    --env TORCH_HOME=/root/.cache/torch \
+    --env HF_HOME=/root/.cache/huggingface \    
     "$DLC_SIF" \
     python "${SCRIPTS_DIR}/dlc_train.py" "$CONFIG" \
         --shuffle 1
