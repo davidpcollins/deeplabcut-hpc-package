@@ -85,6 +85,10 @@ def main():
         "--show_gpu", action="store_true", default=False,
         help="Show GPU usage information (default: False)",
     )
+    parser.add_argument(
+    "--skip_analysis", action="store_true", default=False,
+    help="Skip analysis step and only do filtering/video creation (default: False)",
+    )
     args = parser.parse_args()
     
     # Process videotype into a list of extensions
@@ -124,16 +128,17 @@ def main():
         videos_to_process = all_videos
 
     # ── Analyse ─────────────────────────────────────────────────────────
-    print(f"\nAnalysing {len(videos_to_process)} video(s)...")
-    deeplabcut.analyze_videos(
-        args.config_path,
-        videos_to_process,
-        shuffle=args.shuffle,
-        trainingsetindex=args.trainingsetindex,
-        dynamic=(args.dynamic_cropping, 0.5, 10), # the 2nd-3rd args only matter if #1=True
-        save_as_csv=True,
-        show_gpu_memory=args.show_gpu,
-    )
+    if not args.skip_analysis:
+        print(f"\nAnalysing {len(videos_to_process)} video(s)...")
+        deeplabcut.analyze_videos(
+            args.config_path,
+            videos_to_process,
+            shuffle=args.shuffle,
+            trainingsetindex=args.trainingsetindex,
+            dynamic=(args.dynamic_cropping, 0.5, 10), # the 2nd-3rd args only matter if #1=True
+            save_as_csv=True,
+            show_gpu_memory=args.show_gpu,
+        )
 
     # ── Filter ──────────────────────────────────────────────────────────
     if args.filter:
@@ -157,6 +162,7 @@ def main():
             filtered=args.filter,
             draw_skeleton=True,
             color_by="bodypart",
+            dotsize=3, # it seems that create_labeled_video() ignores config.yaml on this
         )
 
     print("\n✓ Video analysis complete.")
