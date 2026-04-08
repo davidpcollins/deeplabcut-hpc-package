@@ -63,7 +63,7 @@ def main():
     )
     parser.add_argument(
         "--filter", action="store_true", default=False,
-        help="Apply median filter after analysis (default: True)",
+        help="Apply median filter after analysis (default: False)",
     )
     parser.add_argument(
         "--filter_type", default="median",
@@ -86,8 +86,8 @@ def main():
         help="Show GPU usage information (default: False)",
     )
     parser.add_argument(
-    "--skip_analysis", action="store_true", default=False,
-    help="Skip analysis step and only do filtering/video creation (default: False)",
+        "--skip_analysis", action="store_true", default=False,
+        help="Skip analysis step and only do filtering/video creation (default: False)",
     )
     args = parser.parse_args()
     
