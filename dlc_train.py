@@ -40,7 +40,6 @@ Usage:
 """
 
 import argparse
-import os
 import sys
 import yaml
 from pathlib import Path
@@ -48,6 +47,7 @@ from pathlib import Path
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
 
 def fix_project_path(config_path):
     """
@@ -66,7 +66,7 @@ def fix_project_path(config_path):
     new_norm = project_dir.rstrip("/")
 
     if old_norm != new_norm:
-        print(f"  Fixing project_path:")
+        print("  Fixing project_path:")
         print(f"    Old: {old_path}")
         print(f"    New: {project_dir}")
         cfg["project_path"] = project_dir
@@ -113,7 +113,7 @@ def fix_video_paths(config_path):
         if new_video_path.exists():
             new_key = str(new_video_path)
             if new_key != old_video_path:
-                print(f"  Fixing video path:")
+                print("  Fixing video path:")
                 print(f"    Old: {old_video_path}")
                 print(f"    New: {new_key}")
                 changed = True
@@ -155,6 +155,7 @@ def find_pytorch_config(config_path, shuffle=1, trainingsetindex=0):
         "Has create_training_dataset() been run? (use --setup)"
     )
 
+
 def apply_overrides(yaml_path, overrides):
     """Apply dot-notation overrides to a YAML file."""
     with open(yaml_path, "r") as f:
@@ -185,6 +186,7 @@ def apply_overrides(yaml_path, overrides):
 # Main
 # ---------------------------------------------------------------------------
 
+
 def main():
     parser = argparse.ArgumentParser(
         description="Full DLC 3 (PyTorch) training pipeline for HPC.",
@@ -208,44 +210,64 @@ Examples:
     # ── Setup flags ────────────────────────────────────────────────────
     setup_group = parser.add_argument_group("setup (first run on cluster)")
     setup_group.add_argument(
-        "--setup", action="store_true", default=False,
+        "--setup",
+        action="store_true",
+        default=False,
         help="Run build_weight_init + create_training_dataset before training",
     )
     setup_group.add_argument(
-        "--num_shuffles", type=int, default=1,
+        "--num_shuffles",
+        type=int,
+        default=1,
         help="Number of shuffles to create (default: 1)",
     )
     setup_group.add_argument(
-        "--from_shuffle", type=int, default=None,
+        "--from_shuffle",
+        type=int,
+        default=None,
         help="(Optional) Shuffle index to copy when creating a new training dataset from an existing split (default: same as --shuffle)",
     )
     setup_group.add_argument(
-        "--from_trainsetindex", type=int, default=0,
+        "--from_trainsetindex",
+        type=int,
+        default=0,
         help="(Optional) Trainset index to copy when creating a new training dataset from an existing split (default: 0)",
     )
     setup_group.add_argument(
-        "--superanimal", type=str, default="",
+        "--superanimal",
+        type=str,
+        default="",
         help="SuperAnimal model name (default: None). Options include 'superanimal_topviewmouse', 'superanimal_quadruped', 'superanimal_humanbody'",
     )
     setup_group.add_argument(
-        "--model_name", type=str, default="hrnet_w32",
+        "--model_name",
+        type=str,
+        default="hrnet_w32",
         help="Model architecture (default: hrnet_w32)",
     )
     setup_group.add_argument(
-        "--net_type", type=str, default=None,
+        "--net_type",
+        type=str,
+        default=None,
         help="Net type for create_training_dataset (default: same as --model_name)",
     )
     setup_group.add_argument(
-        "--detector_name", type=str, default="fasterrcnn_mobilenet_v3_large_fpn",
+        "--detector_name",
+        type=str,
+        default="fasterrcnn_mobilenet_v3_large_fpn",
         help="Detector model architecture for top-down models (default: fasterrcnn_mobilenetv3_large_fpn)",
     )
     setup_group.add_argument(
-        "--with_decoder", action="store_true", default=False,
+        "--with_decoder",
+        action="store_true",
+        default=False,
         help="Use transfer learning (with_decoder=False) or keypoint fine tuning (True) \
             when creating training dataset (default: False)",
     )
     setup_group.add_argument(
-        "--memory_replay", action="store_true", default=False,
+        "--memory_replay",
+        action="store_true",
+        default=False,
         help="Whether to prepare for memory replay fine-tuning (default: False). \
             If True, predicts all SuperAnimal bodyparts",
     )
@@ -253,61 +275,89 @@ Examples:
     # ── Training flags ─────────────────────────────────────────────────
     train_group = parser.add_argument_group("training")
     train_group.add_argument(
-        "--shuffle", type=int, default=1,
+        "--shuffle",
+        type=int,
+        default=1,
         help="Shuffle index to use for training (default: 1)",
     )
     train_group.add_argument(
-        "--trainingsetindex", type=int, default=0,
+        "--trainingsetindex",
+        type=int,
+        default=0,
         help="Training-set index (default: 0)",
     )
     train_group.add_argument(
-        "--method", type=str, default=None,
+        "--method",
+        type=str,
+        default=None,
         help="top-down (td) vs bottom-up (bu); default: same as pytorch_config.yaml",
     )
     train_group.add_argument(
-        "--epochs", type=int, default=None,
+        "--epochs",
+        type=int,
+        default=None,
         help="Override train_settings.epochs",
     )
     train_group.add_argument(
-        "--batch_size", type=int, default=None,
+        "--batch_size",
+        type=int,
+        default=None,
         help="Override train_settings.batch_size",
     )
     train_group.add_argument(
-        "--save_epochs", type=int, default=None,
+        "--save_epochs",
+        type=int,
+        default=None,
         help="Override runner.snapshots.save_epochs",
     )
     train_group.add_argument(
-        "--eval_interval", type=int, default=None,
+        "--eval_interval",
+        type=int,
+        default=None,
         help="Override runner.eval_interval",
     )
     train_group.add_argument(
-        "--display_iters", type=int, default=None,
+        "--display_iters",
+        type=int,
+        default=None,
         help="Override train_settings.display_iters",
     )
     train_group.add_argument(
-        "--detector_epochs", type=int, default=None,
+        "--detector_epochs",
+        type=int,
+        default=None,
         help="Override detector train_settings.epochs (top-down models)",
     )
     train_group.add_argument(
-        "--detector_batch_size", type=int, default=None,
+        "--detector_batch_size",
+        type=int,
+        default=None,
         help="Override detector train_settings.batch_size (top-down models)",
     )
     train_group.add_argument(
-        "--dataloader_workers", type=int, default=None,
+        "--dataloader_workers",
+        type=int,
+        default=None,
         help="Override train_settings.dataloader_workers to speed up data loading (default: 0)",
     )
     train_group.add_argument(
-        "--dataloader_pin_memory", action="store_true", default=False,
+        "--dataloader_pin_memory",
+        action="store_true",
+        default=False,
         help="Override train_settings.dataloader_pin_memory to speed up data loading (default: False)",
     )
 
     # ── Misc ───────────────────────────────────────────────────────────
     parser.add_argument(
-        "--skip_train", action="store_true", default=False,
+        "--skip_train",
+        action="store_true",
+        default=False,
         help="Only run setup (--setup), skip training and evaluation",
     )
     parser.add_argument(
-        "--skip_eval", action="store_true", default=False,
+        "--skip_eval",
+        action="store_true",
+        default=False,
         help="Skip evaluation after training",
     )
 
@@ -328,8 +378,10 @@ Examples:
     print(f"  PyTorch    {torch.__version__}")
     print(f"  CUDA       {torch.cuda.is_available()}", end="")
     if torch.cuda.is_available():
-        print(f" — {torch.cuda.get_device_name(0)} "
-              f"({torch.cuda.get_device_properties(0).total_memory / 1e9:.1f} GB)")
+        print(
+            f" — {torch.cuda.get_device_name(0)} "
+            f"({torch.cuda.get_device_properties(0).total_memory / 1e9:.1f} GB)"
+        )
     else:
         print()
     print(f"  Config     {args.config_path}")
@@ -349,29 +401,31 @@ Examples:
     # ══════════════════════════════════════════════════════════════════
     from deeplabcut.modelzoo import build_weight_init
     from deeplabcut.utils.pseudo_label import keypoint_matching
-    from deeplabcut.core.engine import Engine
     from deeplabcut.modelzoo.utils import (
         create_conversion_table,
         read_conversion_table_from_csv,
     )
+
     cfg = yaml.safe_load(open(args.config_path))
     if args.setup:
         print("[2/5] Setting up training dataset...")
         print(f"  SuperAnimal : {args.superanimal}")
         print(f"  Model       : {args.model_name}")
         print(f"  Net type    : {args.net_type}")
-       
-        if not args.superanimal: # No SuperAnimal — create the training dataset with default imagenet weights
+
+        if (
+            not args.superanimal
+        ):  # No SuperAnimal — create the training dataset with default imagenet weights
             deeplabcut.create_training_dataset(
-                config = args.config_path,
-                num_shuffles = args.num_shuffles,
-                net_type = args.model_name,
+                config=args.config_path,
+                num_shuffles=args.num_shuffles,
+                net_type=args.model_name,
                 userfeedback=False,
             )
-        else: # SuperAnimal training requires weight initialization before building the training dataset
-            if args.with_decoder: #Case of fine tuning rather than transfer learning
+        else:  # SuperAnimal training requires weight initialization before building the training dataset
+            if args.with_decoder:  # Case of fine tuning rather than transfer learning
                 print("  Using keypoint fine-tuning (with_decoder=True)")
-                
+
                 # Match the keypoints between the SuperAnimal model and the user's dataset, and save the pseudo labels for analysis/visualization
                 keypoint_matching(
                     config_path=args.config_path,
@@ -380,15 +434,19 @@ Examples:
                     detector_name=args.detector_name,
                     copy_images=True,
                 )
-                
+
                 # Paths for outputs of keypoint_matching (conversion table, confusion matrix, pseudo predictions)
-                conversion_table_path = Path(project_dir) / "memory_replay" / "conversion_table.csv"
-                
+                conversion_table_path = (
+                    Path(project_dir) / "memory_replay" / "conversion_table.csv"
+                )
+
                 # Create conversion table from keypoint matching results
                 create_conversion_table(
                     config=args.config_path,
                     super_animal=args.superanimal,
-                    project_to_super_animal=read_conversion_table_from_csv(conversion_table_path),
+                    project_to_super_animal=read_conversion_table_from_csv(
+                        conversion_table_path
+                    ),
                 )
             else:
                 print("  Using transfer learning (with_decoder=False)")
@@ -405,7 +463,9 @@ Examples:
 
             # DLC throws an error if you use superanimal for weight_init with top_down_model so this is a workaround
             if args.method == "td":
-                print("  Detected method=top-down. Using detector_name for training dataset creation.")
+                print(
+                    "  Detected method=top-down. Using detector_name for training dataset creation."
+                )
                 args.net_type = "top_down_" + args.net_type
 
             deeplabcut.create_training_dataset(
@@ -418,24 +478,26 @@ Examples:
                 userfeedback=False,
             )
             print("  Training dataset created.\n")
-    
-    else: # Case of retraining existing dataset and you want to keep the same initial shuffle split
-        print("[2/5] Recreating training dataset from existing split...\n"
-              f"  from_shuffle={args.from_shuffle}, from_trainsetindex={args.from_trainsetindex}")
-        
-        if not args.superanimal: # No SuperAnimal
+
+    else:  # Case of retraining existing dataset and you want to keep the same initial shuffle split
+        print(
+            "[2/5] Recreating training dataset from existing split...\n"
+            f"  from_shuffle={args.from_shuffle}, from_trainsetindex={args.from_trainsetindex}"
+        )
+
+        if not args.superanimal:  # No SuperAnimal
             deeplabcut.create_training_dataset_from_existing_split(
-                config = args.config_path,
-                from_shuffle = args.from_shuffle,
-                from_trainsetindex = args.from_trainsetindex,
-                num_shuffles = args.num_shuffles,
-                net_type = args.model_name,
+                config=args.config_path,
+                from_shuffle=args.from_shuffle,
+                from_trainsetindex=args.from_trainsetindex,
+                num_shuffles=args.num_shuffles,
+                net_type=args.model_name,
                 userfeedback=False,
             )
-        else: # SuperAnimal training requires weight initialization before building the training dataset
-            if args.with_decoder: #Case of fine tuning rather than transfer learning
+        else:  # SuperAnimal training requires weight initialization before building the training dataset
+            if args.with_decoder:  # Case of fine tuning rather than transfer learning
                 print("  Using keypoint fine-tuning (with_decoder=True)")
-                
+
                 # Match the keypoints between the SuperAnimal model and the user's dataset, and save the pseudo labels for analysis/visualization
                 keypoint_matching(
                     config_path=args.config_path,
@@ -444,15 +506,19 @@ Examples:
                     detector_name=args.detector_name,
                     copy_images=True,
                 )
-                
+
                 # Paths for outputs of keypoint_matching (conversion table, confusion matrix, pseudo predictions)
-                conversion_table_path = Path(project_dir) / "memory_replay" / "conversion_table.csv"
-                
+                conversion_table_path = (
+                    Path(project_dir) / "memory_replay" / "conversion_table.csv"
+                )
+
                 # Create conversion table from keypoint matching results
                 create_conversion_table(
                     config=args.config_path,
                     super_animal=args.superanimal,
-                    project_to_super_animal=read_conversion_table_from_csv(conversion_table_path),
+                    project_to_super_animal=read_conversion_table_from_csv(
+                        conversion_table_path
+                    ),
                 )
             else:
                 print("  Using transfer learning (with_decoder=False)")
@@ -496,20 +562,22 @@ Examples:
         )
         print(f"  Pose config: {pt_cfg_path}")
 
-        apply_overrides(pt_cfg_path, {
-            "train_settings.epochs":                         args.epochs,
-            "train_settings.batch_size":                     args.batch_size,
-            "train_settings.display_iters":                  args.display_iters,
-            "runner.snapshots.save_epochs":                  args.save_epochs,
-            "detector.train_settings.epochs":                args.detector_epochs,
-            "detector.train_settings.batch_size":            args.detector_batch_size,
-            "runner.eval_interval":                          args.eval_interval,
-            "detector.train_settings.dataloader_workers":    args.dataloader_workers,
-            "detector.train_settings.dataloader_pin_memory": args.dataloader_pin_memory,
-            "train_settings.dataloader_workers":             args.dataloader_workers,
-            "train_settings.dataloader_pin_memory":          args.dataloader_pin_memory,
-
-        })
+        apply_overrides(
+            pt_cfg_path,
+            {
+                "train_settings.epochs": args.epochs,
+                "train_settings.batch_size": args.batch_size,
+                "train_settings.display_iters": args.display_iters,
+                "runner.snapshots.save_epochs": args.save_epochs,
+                "detector.train_settings.epochs": args.detector_epochs,
+                "detector.train_settings.batch_size": args.detector_batch_size,
+                "runner.eval_interval": args.eval_interval,
+                "detector.train_settings.dataloader_workers": args.dataloader_workers,
+                "detector.train_settings.dataloader_pin_memory": args.dataloader_pin_memory,
+                "train_settings.dataloader_workers": args.dataloader_workers,
+                "train_settings.dataloader_pin_memory": args.dataloader_pin_memory,
+            },
+        )
 
     except FileNotFoundError as e:
         print(f"  ERROR: {e}")

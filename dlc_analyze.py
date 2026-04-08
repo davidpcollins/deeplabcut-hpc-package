@@ -41,56 +41,70 @@ def main():
     parser = argparse.ArgumentParser(
         description="Batch-analyse videos with a trained DLC 3 model."
     )
+    parser.add_argument("config_path", help="Path to DLC project config.yaml")
     parser.add_argument(
-        "config_path", 
-        help="Path to DLC project config.yaml"
+        "--video_dir", required=True, help="Directory containing videos"
     )
     parser.add_argument(
-        "--video_dir", required=True, 
-        help="Directory containing videos"
+        "--videotype",
+        default=".mp4",
+        help="Comma-separated string of video extensions, e.g. '.mp4,.avi,.mov' (default: '.mp4') ",
     )
     parser.add_argument(
-        "--videotype", default=".mp4",
-        help="Comma-separated string of video extensions, e.g. '.mp4,.avi,.mov' (default: '.mp4') "
-    )
-    parser.add_argument(
-        "--shuffle", type=int, default=1,
+        "--shuffle",
+        type=int,
+        default=1,
         help="DLC shuffle number to use for analysis (default: 1)",
     )
     parser.add_argument(
-        "--trainingsetindex", type=int, default=0,
+        "--trainingsetindex",
+        type=int,
+        default=0,
         help="DLC training set index to use for analysis (default: 0)",
     )
     parser.add_argument(
-        "--filter", action="store_true", default=False,
+        "--filter",
+        action="store_true",
+        default=False,
         help="Apply median filter after analysis (default: False)",
     )
     parser.add_argument(
-        "--filter_type", default="median",
-        help="Type of filter to apply (default: 'median', other options: 'arima', 'spline')"
+        "--filter_type",
+        default="median",
+        help="Type of filter to apply (default: 'median', other options: 'arima', 'spline')",
     )
     parser.add_argument(
-        "--dynamic_cropping", action="store_true", default=False, 
-        help="Enable dynamic cropping to increase speed"
+        "--dynamic_cropping",
+        action="store_true",
+        default=False,
+        help="Enable dynamic cropping to increase speed",
     )
     parser.add_argument(
-        "--create_video", action="store_true", default=False,
+        "--create_video",
+        action="store_true",
+        default=False,
         help="Create labelled output videos",
     )
     parser.add_argument(
-        "--array_mode", action="store_true", default=False,
+        "--array_mode",
+        action="store_true",
+        default=False,
         help="Process a single video indexed by SLURM_ARRAY_TASK_ID",
     )
     parser.add_argument(
-        "--show_gpu", action="store_true", default=False,
+        "--show_gpu",
+        action="store_true",
+        default=False,
         help="Show GPU usage information (default: False)",
     )
     parser.add_argument(
-        "--skip_analysis", action="store_true", default=False,
+        "--skip_analysis",
+        action="store_true",
+        default=False,
         help="Skip analysis step and only do filtering/video creation (default: False)",
     )
     args = parser.parse_args()
-    
+
     # Process videotype into a list of extensions
     videotype = [ext.strip() for ext in args.videotype.split(",") if ext.strip()]
     args.videotype = videotype
@@ -120,7 +134,9 @@ def main():
     if args.array_mode:
         task_id = int(os.environ.get("SLURM_ARRAY_TASK_ID", 0))
         if task_id >= len(all_videos):
-            print(f"SLURM_ARRAY_TASK_ID={task_id} exceeds video count ({len(all_videos)}). Exiting.")
+            print(
+                f"SLURM_ARRAY_TASK_ID={task_id} exceeds video count ({len(all_videos)}). Exiting."
+            )
             sys.exit(0)
         videos_to_process = [all_videos[task_id]]
         print(f"Array mode: processing video index {task_id} → {videos_to_process[0]}")
@@ -135,7 +151,11 @@ def main():
             videos_to_process,
             shuffle=args.shuffle,
             trainingsetindex=args.trainingsetindex,
-            dynamic=(args.dynamic_cropping, 0.5, 10), # the 2nd-3rd args only matter if #1=True
+            dynamic=(
+                args.dynamic_cropping,
+                0.5,
+                10,
+            ),  # the 2nd-3rd args only matter if #1=True
             save_as_csv=True,
             show_gpu_memory=args.show_gpu,
         )
@@ -162,7 +182,7 @@ def main():
             filtered=args.filter,
             draw_skeleton=True,
             color_by="bodypart",
-            dotsize=3, # it seems that create_labeled_video() ignores config.yaml on this
+            dotsize=3,  # it seems that create_labeled_video() ignores config.yaml on this
         )
 
     print("\n✓ Video analysis complete.")

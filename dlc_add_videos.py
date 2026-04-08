@@ -9,19 +9,26 @@ Notes:
     - Supported video formats are determined by the list in the list_video_files() function (default: .mp4, .avi, .mov, .mkv).
     - This script uses the built-in deeplabcut.add_new_videos() function, which handles updating the config.yaml file and copying/extracting as needed.
 """
+
 import argparse
 import os
 import sys
 from pathlib import Path
 
+
 # Helper function to get list of video files in a folder (including subfolders)
 def list_video_files(folder, video_extensions=None):
-    if video_extensions is None: # Otherwise you can pass in a custom list of video extensions
+    if (
+        video_extensions is None
+    ):  # Otherwise you can pass in a custom list of video extensions
         video_extensions = [".mp4", ".avi", ".mov", ".mkv"]
     p = Path(folder)
     return [
-        str(file.resolve()) for file in p.rglob("*") if file.is_file() and file.suffix.lower() in video_extensions
+        str(file.resolve())
+        for file in p.rglob("*")
+        if file.is_file() and file.suffix.lower() in video_extensions
     ]
+
 
 def main():
     parser = argparse.ArgumentParser(
@@ -29,19 +36,27 @@ def main():
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
     parser.add_argument(
-        "--config_path", type=str, default=None,
-            help="Path to config.yaml file (default: None)",
+        "--config_path",
+        type=str,
+        default=None,
+        help="Path to config.yaml file (default: None)",
     )
     parser.add_argument(
-        "--folder_to_add", type=str, default=None,
+        "--folder_to_add",
+        type=str,
+        default=None,
         help="Path to directory containing video files to add to the project",
     )
     parser.add_argument(
-        "--copy_videos", action="store_true", default=True,
+        "--copy_videos",
+        action="store_true",
+        default=True,
         help="Whether to copy video files to the DLC project folder (default: True). If False, DLC will reference videos in their original location.",
     )
     parser.add_argument(
-        "--extract_frames", action="store_true", default=False,
+        "--extract_frames",
+        action="store_true",
+        default=False,
         help="Whether to extract frames from video files (default: False)",
     )
 
@@ -53,7 +68,7 @@ def main():
         sys.exit(1)
     if args.folder_to_add is None:
         print("Error: --folder_to_add is required.")
-        sys.exit(1) 
+        sys.exit(1)
     if not os.path.isfile(args.config_path):
         print(f"Error: Config file '{args.config_path}' does not exist.")
         sys.exit(1)
@@ -71,11 +86,12 @@ def main():
 
     # Add video files using DLC built-in function
     deeplabcut.add_new_videos(
-        args.config_path, # Path to config.yaml file
-        video_files, # List of strings of video file paths to add
+        args.config_path,  # Path to config.yaml file
+        video_files,  # List of strings of video file paths to add
         copy_videos=args.copy_videos,
         extract_frames=args.extract_frames,
     )
+
 
 if __name__ == "__main__":
     main()
