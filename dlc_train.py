@@ -37,6 +37,10 @@ Usage:
         --model_name hrnet_w32 \
         --shuffle 3 --epochs 50 --batch_size 64 \
         --detector_epochs 0 --save_epochs 10
+
+To do:
+[] Add condition top-down support
+
 """
 
 import argparse
@@ -419,7 +423,9 @@ Examples:
             deeplabcut.create_training_dataset(
                 config=args.config_path,
                 num_shuffles=args.num_shuffles,
+                Shuffles=[args.shuffle],
                 net_type=args.model_name,
+                detector_type=args.detector_name,
                 userfeedback=False,
             )
         else:  # SuperAnimal training requires weight initialization before building the training dataset
@@ -471,6 +477,7 @@ Examples:
             deeplabcut.create_training_dataset(
                 config=args.config_path,
                 num_shuffles=args.num_shuffles,
+                Shuffles=[args.shuffle],
                 net_type=args.net_type,
                 detector_type=args.detector_name,
                 augmenter_type="albumentations",
@@ -491,7 +498,10 @@ Examples:
                 from_shuffle=args.from_shuffle,
                 from_trainsetindex=args.from_trainsetindex,
                 num_shuffles=args.num_shuffles,
+                shuffles=[args.shuffle],
                 net_type=args.model_name,
+                detector_type=args.detector_name,
+                augmenter_type="albumentations",
                 userfeedback=False,
             )
         else:  # SuperAnimal training requires weight initialization before building the training dataset
@@ -538,6 +548,7 @@ Examples:
                 from_shuffle=args.from_shuffle,
                 from_trainsetindex=args.from_trainsetindex,
                 num_shuffles=args.num_shuffles,
+                shuffles=[args.shuffle],
                 net_type=args.net_type,
                 detector_type=args.detector_name,
                 augmenter_type="albumentations",
