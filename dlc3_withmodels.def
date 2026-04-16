@@ -2,8 +2,8 @@ Bootstrap: docker
 From: nvidia/cuda:12.4.1-cudnn-runtime-ubuntu22.04
 
 %labels
-    Author David Collins <david.collins@ucsf.edu> with assistance from ChatGPT-UCSF Enterprise
-    Description DeepLabCut 3.x production-grade offline HPC image with writable runtime cache fallback
+    Author David Collins {david.collins@ucsf.edu} with assistance from UCSF Enterprise ChatGPT
+    Description DeepLabCut 3.x offline HPC image with writable runtime cache fallback
 
 %environment
     # Runtime cache policy:
@@ -22,7 +22,6 @@ From: nvidia/cuda:12.4.1-cudnn-runtime-ubuntu22.04
     export DEBIAN_FRONTEND=noninteractive
 
     apt-get update
-    apt-get install -y python-is-python3
     apt-get install -y --no-install-recommends \
         bash \
         ca-certificates \
@@ -42,6 +41,7 @@ From: nvidia/cuda:12.4.1-cudnn-runtime-ubuntu22.04
     mkdir -p \
         /opt/dlc-bin \
         /opt/dlc-cache-ro/torch/hub/checkpoints \
+        /opt/dlc-cache-ro/huggingface/hub \
         /opt/dlc-cache-ro/huggingface/transformers \
         /opt/dlc-prime \
         /opt/dlc-home
@@ -66,12 +66,14 @@ dlc_cache_bootstrap() {
     export XDG_CACHE_HOME="${DLC_CACHE_ROOT}"
     export TORCH_HOME="${DLC_CACHE_ROOT}/torch"
     export HF_HOME="${DLC_CACHE_ROOT}/huggingface"
+    export HF_HUB_CACHE="${HF_HOME}/hub"
     export TRANSFORMERS_CACHE="${HF_HOME}/transformers"
     export MPLBACKEND="${MPLBACKEND:-Agg}"
     export PYTHONUNBUFFERED="${PYTHONUNBUFFERED:-1}"
 
     mkdir -p \
         "${TORCH_HOME}/hub/checkpoints" \
+        "${HF_HUB_CACHE}" \
         "${HF_HOME}/transformers"
 
     # Seed the writable runtime cache once from the baked read-only cache.
@@ -94,10 +96,12 @@ SH
 
     # Use the current DLC prerelease line. Change this one line when upgrading.
     # The PyTorch index below uses the CUDA 12.4 wheel family, matching the CUDA runtime base.
-    python3 -m pip install torch torchvision
+    python3 -m pip install \
+        --index-url https://download.pytorch.org/whl/cu124 \
+        torch torchvision
 
     python3 -m pip install --pre \
-        "deeplabcut[modelzoo,wandb]==3.0.0rc14" \
+        "deeplabcut[gui,modelzoo,wandb]==3.0.0rc14" \
         pandas pyyaml pillow h5py scipy scikit-image matplotlib seaborn opencv-python-headless
 
     cat > /opt/dlc-prime/prime_deeplabcut_cache.py <<'PY'
@@ -114,8 +118,10 @@ os.environ["DLC_CACHE_ROOT"] = "/opt/dlc-cache-ro"
 os.environ["XDG_CACHE_HOME"] = "/opt/dlc-cache-ro"
 os.environ["TORCH_HOME"] = "/opt/dlc-cache-ro/torch"
 os.environ["HF_HOME"] = "/opt/dlc-cache-ro/huggingface"
+os.environ["HF_HUB_CACHE"] = "/opt/dlc-cache-ro/huggingface/hub"
 os.environ["TRANSFORMERS_CACHE"] = "/opt/dlc-cache-ro/huggingface/transformers"
 os.environ["MPLBACKEND"] = "Agg"
+os.environ["PYTHONUNBUFFERED"] = "1"
 
 import torch
 import torchvision
@@ -125,6 +131,97 @@ WORK = Path("/opt/dlc-prime")
 VIDEO = WORK / "dummy.mp4"
 FRAME = WORK / "dummy_frame.png"
 WORK.mkdir(parents=True, exist_ok=True)
+
+# These are the currently available models/detectors for PyTorch engine as of 2026-04-15. May need to be updated over time.
+REQUESTED_MODELS = [
+    "animaltokenpose_base",
+    "cspnext_m",
+    "cspnext_s",
+    "cspnext_x",
+    "ctd_coam_w32",
+    "ctd_coam_w48",
+    "ctd_prenet_hrnet_w32",
+    "ctd_prenet_hrnet_w48",
+    "ctd_prenet_rtmpose_m",
+    "ctd_prenet_rtmpose_s",
+    "ctd_prenet_rtmpose_x",
+    "ctd_prenet_rtmpose_x_human",
+    "dekr_w18",
+    "dekr_w32",
+    "dekr_w48",
+    "dlcrnet_stride16_ms5",
+    "dlcrnet_stride32_ms5",
+    "hrnet_w18",
+    "hrnet_w32",
+    "hrnet_w48",
+    "resnet_101",
+    "resnet_50",
+    "rtmpose_m",
+    "rtmpose_s",
+    "rtmpose_x",
+    "top_down_cspnext_m",
+    "top_down_cspnext_s",
+    "top_down_cspnext_x",
+    "top_down_hrnet_w18",
+    "top_down_hrnet_w32",
+    "top_down_hrnet_w48",
+    "top_down_resnet_101",
+    "top_down_resnet_50",
+]
+
+REQUESTED_DETECTORS = [
+    "ssdlite",
+    "fasterrcnn_mobilenet_v3_large_fpn",
+    "fasterrcnn_resnet50_fpn_v2",
+]
+
+TIMM_BACKBONES = [
+    "hrnet_w18",
+    "hrnet_w32",
+    "hrnet_w48",
+    "cspnext_s",
+    "cspnext_m",
+    "cspnext_x",
+    "rtmpose_s",
+    "rtmpose_m",
+    "rtmpose_x",
+]
+
+MODEL_HINTS = {
+    "animaltokenpose_base": ["animaltokenpose_base"],
+    "cspnext_m": ["cspnext_m"],
+    "cspnext_s": ["cspnext_s"],
+    "cspnext_x": ["cspnext_x"],
+    "ctd_coam_w32": ["cspnext_s", "cspnext_m"],
+    "ctd_coam_w48": ["cspnext_x"],
+    "ctd_prenet_hrnet_w32": ["hrnet_w32"],
+    "ctd_prenet_hrnet_w48": ["hrnet_w48"],
+    "ctd_prenet_rtmpose_m": ["rtmpose_m"],
+    "ctd_prenet_rtmpose_s": ["rtmpose_s"],
+    "ctd_prenet_rtmpose_x": ["rtmpose_x"],
+    "ctd_prenet_rtmpose_x_human": ["rtmpose_x"],
+    "dekr_w18": ["hrnet_w18"],
+    "dekr_w32": ["hrnet_w32"],
+    "dekr_w48": ["hrnet_w48"],
+    "dlcrnet_stride16_ms5": ["resnet_50"],
+    "dlcrnet_stride32_ms5": ["resnet_101"],
+    "hrnet_w18": ["hrnet_w18"],
+    "hrnet_w32": ["hrnet_w32"],
+    "hrnet_w48": ["hrnet_w48"],
+    "resnet_101": ["resnet_101"],
+    "resnet_50": ["resnet_50"],
+    "rtmpose_m": ["rtmpose_m"],
+    "rtmpose_s": ["rtmpose_s"],
+    "rtmpose_x": ["rtmpose_x"],
+    "top_down_cspnext_m": ["cspnext_m"],
+    "top_down_cspnext_s": ["cspnext_s"],
+    "top_down_cspnext_x": ["cspnext_x"],
+    "top_down_hrnet_w18": ["hrnet_w18"],
+    "top_down_hrnet_w32": ["hrnet_w32"],
+    "top_down_hrnet_w48": ["hrnet_w48"],
+    "top_down_resnet_101": ["resnet_101"],
+    "top_down_resnet_50": ["resnet_50"],
+}
 
 
 def run(cmd: list[str]) -> None:
@@ -184,6 +281,22 @@ def prime_torchvision_weights() -> None:
     )
 
 
+def prime_timm_backbones() -> None:
+    try:
+        import timm
+    except Exception as exc:
+        skip("import timm", exc)
+        return
+
+    for name in TIMM_BACKBONES:
+        label = f"timm.create_model({name})"
+        try:
+            log(label)
+            timm.create_model(name, pretrained=True)
+        except Exception as exc:
+            skip(label, exc)
+
+
 def prime_superanimal_inference() -> None:
     # Best-effort coverage of the model zoo families documented in DLC 3.x.
     families = [
@@ -213,7 +326,25 @@ def prime_superanimal_inference() -> None:
                     skip(label, exc)
 
 
-def prime_registry_introspection() -> None:
+def create_dummy_project() -> str:
+    # Use an actual DLC project so transfer-learning / training code paths have
+    # a realistic config file to inspect during priming.
+    try:
+        project = deeplabcut.create_new_project(
+            project="offline-prime",
+            experimenter="apptainer",
+            videos=[str(VIDEO)],
+            copy_videos=True,
+            multianimal=True,
+            working_directory=str(WORK),
+        )
+        return str(Path(project) / "config.yaml")
+    except Exception as exc:
+        skip("create_new_project", exc)
+        return str(WORK / "dummy-project" / "config.yaml")
+
+
+def prime_registry_and_requested_models(dummy_cfg: str) -> None:
     try:
         from deeplabcut.pose_estimation_pytorch import available_detectors, available_models
         models = list(available_models())
@@ -222,23 +353,42 @@ def prime_registry_introspection() -> None:
         log(f"available detectors: {detectors}")
     except Exception as exc:
         skip("available_models/available_detectors", exc)
-        return
+        models = []
+        detectors = []
 
-    # This is intentionally best-effort. Some registry entries may be aliases,
-    # inference-only, or may require a valid training config to instantiate.
-    # We do not fail the build on those cases.
+    # Ensure the user-requested models are always included, even if registry
+    # names shift slightly across DLC releases.
+    model_set = sorted(set(models) | set(REQUESTED_MODELS))
+    detector_set = sorted(set(detectors) | set(REQUESTED_DETECTORS))
+
     try:
         from deeplabcut.modelzoo import build_weight_init
     except Exception as exc:
         skip("import build_weight_init", exc)
         return
 
-    dummy_cfg = str(WORK / "dummy-project" / "config.yaml")
+    for model in model_set:
+        hints = MODEL_HINTS.get(model, [])
+        if model == "animaltokenpose_base":
+            # Inference-only model in current DLC docs; keep best-effort attempt.
+            pass
 
-    for model in models:
-        if model == "animal_tokenpose_base":
-            continue
-        for detector in [None] + detectors:
+        # First try any directly associated pretrained backbone names.
+        for hint in hints:
+            if hint in TIMM_BACKBONES:
+                try:
+                    import timm
+                    log(f"timm.create_model({hint}) [via {model}]")
+                    timm.create_model(hint, pretrained=True)
+                except Exception as exc:
+                    skip(f"timm.create_model({hint}) via {model}", exc)
+
+        # Then exercise the DLC registry path. This is intentionally
+        # best-effort; some entries are aliases or may require a specific
+        # detector/backbone pairing.
+        use_detectors = detector_set if (model.startswith("top_down_") or model.startswith("ctd_") or model.startswith("rtmpose_") or model.startswith("ctd_prenet_") or model.startswith("ctd_coam_")) else [None]
+
+        for detector in use_detectors:
             label = f"build_weight_init({model}, {detector})"
             try:
                 kwargs = {
@@ -255,29 +405,14 @@ def prime_registry_introspection() -> None:
                 skip(label, exc)
 
 
-def create_dummy_project() -> None:
-    # Use an actual DLC project so transfer-learning / training code paths have
-    # a realistic config file to inspect during priming.
-    try:
-        deeplabcut.create_new_project(
-            project="offline-prime",
-            experimenter="apptainer",
-            videos=[str(VIDEO)],
-            copy_videos=True,
-            multianimal=True,
-            working_directory=str(WORK),
-        )
-    except Exception as exc:
-        skip("create_new_project", exc)
-
-
 def main() -> None:
     print("DeepLabCut:", getattr(deeplabcut, "__version__", "unknown"), flush=True)
     make_dummy_media()
-    create_dummy_project()
+    dummy_cfg = create_dummy_project()
     prime_torchvision_weights()
+    prime_timm_backbones()
     prime_superanimal_inference()
-    prime_registry_introspection()
+    prime_registry_and_requested_models(dummy_cfg)
     print("Priming complete.", flush=True)
 
 
