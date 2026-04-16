@@ -552,7 +552,6 @@ Examples:
                 net_type=args.net_type,
                 detector_type=args.detector_name,
                 augmenter_type="albumentations",
-                superanimal_name=args.superanimal,
                 weight_init=weight_init,
                 userfeedback=False,
             )
