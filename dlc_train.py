@@ -217,7 +217,7 @@ Examples:
         "--setup",
         action="store_true",
         default=False,
-        help="Run build_weight_init + create_training_dataset before training",
+        help="Create_training_dataset before training",
     )
     setup_group.add_argument(
         "--num_shuffles",
@@ -409,8 +409,9 @@ Examples:
         create_conversion_table,
         read_conversion_table_from_csv,
     )
+    import deeplabcut.utils.auxiliaryfunctions as auxiliaryfunctions
 
-    cfg = yaml.safe_load(open(args.config_path))
+    # cfg = yaml.safe_load(open(args.config_path))
     if args.setup:
         print("[2/5] Setting up training dataset...")
         print(f"  SuperAnimal : {args.superanimal}")
@@ -458,7 +459,9 @@ Examples:
                 print("  Using transfer learning (with_decoder=False)")
 
             weight_init = build_weight_init(
-                cfg=cfg,
+                cfg=auxiliaryfunctions.read_config(
+                    args.config_path
+                ),  # this is how they pass config in their notebooks, and it breaks with just string path
                 super_animal=args.superanimal,
                 model_name=args.model_name,
                 detector_name=args.detector_name,
@@ -534,7 +537,7 @@ Examples:
                 print("  Using transfer learning (with_decoder=False)")
 
             weight_init = build_weight_init(
-                cfg=cfg,
+                cfg=auxiliaryfunctions.read_config(args.config_path),
                 super_animal=args.superanimal,
                 model_name=args.model_name,
                 detector_name=args.detector_name,
