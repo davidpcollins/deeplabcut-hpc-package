@@ -369,6 +369,12 @@ Examples:
 
     if args.net_type is None:
         args.net_type = args.model_name
+        # DLC throws an error if you use superanimal for weight_init with top_down_model so this is a workaround
+        if args.method == "td":
+            print(
+                "  Detected method=top-down. Using detector_name for training dataset creation."
+            )
+            args.net_type = "top_down_" + args.net_type
 
     if args.from_shuffle is None:
         args.from_shuffle = args.shuffle
@@ -425,7 +431,7 @@ Examples:
                 config=args.config_path,
                 num_shuffles=args.num_shuffles,
                 Shuffles=[args.shuffle],
-                net_type=args.model_name,
+                net_type=args.net_type,
                 detector_type=args.detector_name,
                 userfeedback=False,
             )
@@ -470,13 +476,6 @@ Examples:
             )
             print(f"  Weight init built: {type(weight_init).__name__}")
 
-            # DLC throws an error if you use superanimal for weight_init with top_down_model so this is a workaround
-            if args.method == "td":
-                print(
-                    "  Detected method=top-down. Using detector_name for training dataset creation."
-                )
-                args.net_type = "top_down_" + args.net_type
-
             deeplabcut.create_training_dataset(
                 config=args.config_path,
                 num_shuffles=args.num_shuffles,
@@ -502,7 +501,7 @@ Examples:
                 from_trainsetindex=args.from_trainsetindex,
                 num_shuffles=args.num_shuffles,
                 shuffles=[args.shuffle],
-                net_type=args.model_name,
+                net_type=args.net_type,
                 detector_type=args.detector_name,
                 augmenter_type="albumentations",
                 userfeedback=False,
