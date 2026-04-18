@@ -391,6 +391,17 @@ Examples:
 
     args = parser.parse_args()
 
+    # Look for incompatibility
+    if args.resume_training:
+        if args.setup:
+            print("ERROR: --resume_training and --setup cannot both be true.")
+            sys.exit(1)
+        elif not args.snapshot_path or (args.method == "td" and not args.detector_path):
+            print(
+                "ERROR: --resume_training requires --snapshot_path (and --detector_path for top-down models)."
+            )
+            sys.exit(1)
+
     if args.net_type is None:
         args.net_type = args.model_name
         # DLC throws an error if you use superanimal for weight_init with top_down_model so this is a workaround
