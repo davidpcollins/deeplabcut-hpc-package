@@ -220,6 +220,12 @@ Examples:
         help="Create_training_dataset before training",
     )
     setup_group.add_argument(
+        "--resume_training",
+        action="store_true",
+        default=False,
+        help="Skip all setup steps and resume with previously trained model. Need to provide snapshot_path and detector_path if true",
+    )
+    setup_group.add_argument(
         "--num_shuffles",
         type=int,
         default=1,
@@ -337,6 +343,24 @@ Examples:
         type=int,
         default=None,
         help="Override detector train_settings.batch_size (top-down models)",
+    )
+    train_group.add_argument(
+        "--keep_deconv_weights",
+        action="store_true",
+        default=True,
+        help="Keep deconvolutional weights when resuming training (default: True)",
+    )
+    train_group.add_argument(
+        "--snapshot_path",
+        type=str,
+        default=None,
+        help="Path to model snapshot to resume training from (required if --resume_training)",
+    )
+    train_group.add_argument(
+        "--detector_path",
+        type=str,
+        default=None,
+        help="Path to detector model to resume training from (required if --resume_training and using top-down model)",
     )
     train_group.add_argument(
         "--dataloader_workers",
@@ -599,11 +623,17 @@ Examples:
     # ══════════════════════════════════════════════════════════════════
     # STEP 4: Train
     # ══════════════════════════════════════════════════════════════════
-    print("\n[4/5] Training network...")
+    if not args.resume_training:
+        print("\n[4/5] Training network...")
+    else:
+        print("\n[4/5] Resuming training from snapshot...")
     deeplabcut.train_network(
         args.config_path,
         shuffle=args.shuffle,
         trainingsetindex=args.trainingsetindex,
+        keepdeconvweights=args.keep_deconv_weights,
+        snapshot_path=args.snapshot_path,
+        detector_path=args.detector_path,
     )
 
     # ══════════════════════════════════════════════════════════════════
