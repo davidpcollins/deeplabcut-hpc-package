@@ -523,7 +523,7 @@ Examples:
             )
             print("  Training dataset created.\n")
 
-    else:  # Case of retraining existing dataset and you want to keep the same initial shuffle split
+    elif not args.resume_training:  # Case of retraining existing dataset and you want to keep the same initial shuffle split
         print(
             "[2/5] Recreating training dataset from existing split...\n"
             f"  from_shuffle={args.from_shuffle}, from_trainsetindex={args.from_trainsetindex}"
