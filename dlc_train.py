@@ -442,7 +442,41 @@ Examples:
     fix_video_paths(args.config_path)
 
     # ══════════════════════════════════════════════════════════════════
-    # STEP 2: Create training dataset (only with --setup)
+    # STEP 2: Apply pytorch_config.yaml overrides
+    # ══════════════════════════════════════════════════════════════════
+    print("[2/5] Configuring training hyper-parameters...")
+    try:
+        pt_cfg_path = find_pytorch_config(
+            args.config_path,
+            shuffle=args.shuffle,
+            trainingsetindex=args.trainingsetindex,
+        )
+        print(f"  Pose config: {pt_cfg_path}")
+
+        apply_overrides(
+            pt_cfg_path,
+            {
+                "train_settings.epochs": args.epochs,
+                "train_settings.batch_size": args.batch_size,
+                "train_settings.display_iters": args.display_iters,
+                "runner.snapshots.save_epochs": args.save_epochs,
+                "detector.train_settings.epochs": args.detector_epochs,
+                "detector.train_settings.batch_size": args.detector_batch_size,
+                "runner.eval_interval": args.eval_interval,
+                "detector.train_settings.dataloader_workers": args.dataloader_workers,
+                "detector.train_settings.dataloader_pin_memory": args.dataloader_pin_memory,
+                "train_settings.dataloader_workers": args.dataloader_workers,
+                "train_settings.dataloader_pin_memory": args.dataloader_pin_memory,
+            },
+        )
+
+    except FileNotFoundError as e:
+        print(f"  ERROR: {e}")
+        print("  Did you forget --setup?")
+        sys.exit(1)
+
+    # ══════════════════════════════════════════════════════════════════
+    # STEP 3: Create training dataset (only with --setup)
     # ══════════════════════════════════════════════════════════════════
     from deeplabcut.modelzoo import build_weight_init
     from deeplabcut.utils.pseudo_label import keypoint_matching
@@ -454,7 +488,7 @@ Examples:
 
     # cfg = yaml.safe_load(open(args.config_path))
     if args.setup:
-        print("[2/5] Setting up training dataset...")
+        print("[3/5] Setting up training dataset...")
         print(f"  SuperAnimal : {args.superanimal}")
         print(f"  Model       : {args.model_name}")
         print(f"  Net type    : {args.net_type}")
@@ -596,40 +630,6 @@ Examples:
     if args.skip_train:
         print("--skip_train specified. Done.")
         return
-
-    # ══════════════════════════════════════════════════════════════════
-    # STEP 3: Apply pytorch_config.yaml overrides
-    # ══════════════════════════════════════════════════════════════════
-    print("[3/5] Configuring training hyper-parameters...")
-    try:
-        pt_cfg_path = find_pytorch_config(
-            args.config_path,
-            shuffle=args.shuffle,
-            trainingsetindex=args.trainingsetindex,
-        )
-        print(f"  Pose config: {pt_cfg_path}")
-
-        apply_overrides(
-            pt_cfg_path,
-            {
-                "train_settings.epochs": args.epochs,
-                "train_settings.batch_size": args.batch_size,
-                "train_settings.display_iters": args.display_iters,
-                "runner.snapshots.save_epochs": args.save_epochs,
-                "detector.train_settings.epochs": args.detector_epochs,
-                "detector.train_settings.batch_size": args.detector_batch_size,
-                "runner.eval_interval": args.eval_interval,
-                "detector.train_settings.dataloader_workers": args.dataloader_workers,
-                "detector.train_settings.dataloader_pin_memory": args.dataloader_pin_memory,
-                "train_settings.dataloader_workers": args.dataloader_workers,
-                "train_settings.dataloader_pin_memory": args.dataloader_pin_memory,
-            },
-        )
-
-    except FileNotFoundError as e:
-        print(f"  ERROR: {e}")
-        print("  Did you forget --setup?")
-        sys.exit(1)
 
     # ══════════════════════════════════════════════════════════════════
     # STEP 4: Train
