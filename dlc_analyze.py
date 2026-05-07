@@ -116,13 +116,15 @@ def main():
     import torch
 
     print("=" * 60)
-    print(f"  DeepLabCut {deeplabcut.__version__}")
-    print(f"  CUDA avail {torch.cuda.is_available()}")
+    print(f"  DeepLabCut  {deeplabcut.__version__}")
+    print(f"  CUDA avail  {torch.cuda.is_available()}")
     if torch.cuda.is_available():
-        print(f"  GPU        {torch.cuda.get_device_name(0)}")
-    print(f"  Config     {args.config_path}")
-    print(f"  Video dir  {args.video_dir}")
-    print(f"  Video type {args.videotype}")
+        print(f"  GPU         {torch.cuda.get_device_name(0)}")
+        print(f"  Properties: {torch.cuda.get_device_properties(0)}")
+        print(f"  CUDA_VISIBLE_DEVICES = {os.environ.get('CUDA_VISIBLE_DEVICES')}")
+    print(f"  Config      {args.config_path}")
+    print(f"  Video dir   {args.video_dir}")
+    print(f"  Video type  {args.videotype}")
     print("=" * 60)
 
     # ── Discover videos ─────────────────────────────────────────────────
