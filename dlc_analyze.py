@@ -51,6 +51,9 @@ def main():
         help="Comma-separated string of video extensions, e.g. '.mp4,.avi,.mov' (default: '.mp4') ",
     )
     parser.add_argument(
+        "--video_path", default=None, help="Process one explicit video using path"
+    )
+    parser.add_argument(
         "--shuffle",
         type=int,
         default=1,
@@ -130,8 +133,11 @@ def main():
         print("ERROR: No videos found. Check --video_dir and --videotype.")
         sys.exit(1)
 
+    # ── Case of passing a single video explicitely───────────────────────
+    if args.video_path:
+        videos_to_process = [args.video_path]
     # ── Array mode: pick one video ──────────────────────────────────────
-    if args.array_mode:
+    elif args.array_mode:
         task_id = int(os.environ.get("SLURM_ARRAY_TASK_ID", 0))
         if task_id >= len(all_videos):
             print(
