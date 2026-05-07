@@ -42,9 +42,7 @@ def main():
         description="Batch-analyse videos with a trained DLC 3 model."
     )
     parser.add_argument("config_path", help="Path to DLC project config.yaml")
-    parser.add_argument(
-        "--video_dir", required=True, help="Directory containing videos"
-    )
+    parser.add_argument("--video_dir", default=None, help="Directory containing videos")
     parser.add_argument(
         "--videotype",
         default=".mp4",
