@@ -108,6 +108,9 @@ def main():
     )
     args = parser.parse_args()
 
+    # Keep track of which process is printing (for multi-GPU runs)
+    process = os.environ.get("CUDA_VISIBLE_DEVICES")
+
     # Process videotype into a list of extensions
     videotype = [ext.strip() for ext in args.videotype.split(",") if ext.strip()]
     args.videotype = videotype
@@ -121,7 +124,7 @@ def main():
     if torch.cuda.is_available():
         print(f"  GPU         {torch.cuda.get_device_name(0)}")
         print(f"  Properties: {torch.cuda.get_device_properties(0)}")
-        print(f"  CUDA_VISIBLE_DEVICES = {os.environ.get('CUDA_VISIBLE_DEVICES')}")
+        print(f"  CUDA_VISIBLE_DEVICES = {process}")
     print(f"  Config      {args.config_path}")
     print(f"  Video dir   {args.video_dir}")
     print(f"  Video type  {args.videotype}")
@@ -130,32 +133,34 @@ def main():
     # ── Discover videos ─────────────────────────────────────────────────
     all_videos = find_videos(args.video_dir, args.videotype)
     if not args.video_path:
-        print(f"Found {len(all_videos)} video(s) total")
+        print(f"{process}: Found {len(all_videos)} video(s) total")
 
     if not all_videos:
-        print("ERROR: No videos found. Check --video_dir and --videotype.")
+        print(f"{process}: ERROR: No videos found. Check --video_dir and --videotype.")
         sys.exit(1)
 
     # ── Case of passing a single video explicitely───────────────────────
     if args.video_path:
-        print(f"Processing single video: {args.video_path}")
+        print(f"{process}: Processing single video: {args.video_path}")
         videos_to_process = [args.video_path]
     # ── Array mode: pick one video ──────────────────────────────────────
     elif args.array_mode:
         task_id = int(os.environ.get("SLURM_ARRAY_TASK_ID", 0))
         if task_id >= len(all_videos):
             print(
-                f"SLURM_ARRAY_TASK_ID={task_id} exceeds video count ({len(all_videos)}). Exiting."
+                f"{process}: SLURM_ARRAY_TASK_ID={task_id} exceeds video count ({len(all_videos)}). Exiting."
             )
             sys.exit(0)
         videos_to_process = [all_videos[task_id]]
-        print(f"Array mode: processing video index {task_id} → {videos_to_process[0]}")
+        print(
+            f"{process}: Array mode: processing video index {task_id} → {videos_to_process[0]}"
+        )
     else:
         videos_to_process = all_videos
 
     # ── Analyse ─────────────────────────────────────────────────────────
     if not args.skip_analysis:
-        print(f"\nAnalysing {len(videos_to_process)} video(s)...")
+        print(f"\n{process}: Analysing {len(videos_to_process)} video(s)...")
         deeplabcut.analyze_videos(
             args.config_path,
             videos_to_process,
@@ -172,7 +177,7 @@ def main():
 
     # ── Filter ──────────────────────────────────────────────────────────
     if args.filter:
-        print("\nFiltering predictions...")
+        print(f"\n{process}: Filtering predictions...")
         deeplabcut.filterpredictions(
             args.config_path,
             videos_to_process,
@@ -183,7 +188,7 @@ def main():
 
     # ── Create labelled videos ───────────────────────────────────────────
     if args.create_video:
-        print("\nCreating labelled videos...")
+        print(f"\n{process}: Creating labelled videos...")
         deeplabcut.create_labeled_video(
             args.config_path,
             videos_to_process,
@@ -195,7 +200,7 @@ def main():
             dotsize=3,  # it seems that create_labeled_video() ignores config.yaml on this
         )
 
-    print("\n✓ Video analysis complete.")
+    print(f"\n{process}: ✓ Video analysis complete.")
 
 
 if __name__ == "__main__":
