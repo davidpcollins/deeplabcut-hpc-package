@@ -127,7 +127,8 @@ def main():
 
     # ── Discover videos ─────────────────────────────────────────────────
     all_videos = find_videos(args.video_dir, args.videotype)
-    print(f"Found {len(all_videos)} video(s) total")
+    if not args.video_path:
+        print(f"Found {len(all_videos)} video(s) total")
 
     if not all_videos:
         print("ERROR: No videos found. Check --video_dir and --videotype.")
@@ -135,6 +136,7 @@ def main():
 
     # ── Case of passing a single video explicitely───────────────────────
     if args.video_path:
+        print(f"Processing single video: {args.video_path}")
         videos_to_process = [args.video_path]
     # ── Array mode: pick one video ──────────────────────────────────────
     elif args.array_mode:
