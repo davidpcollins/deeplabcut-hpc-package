@@ -111,6 +111,8 @@ def main():
     # Keep track of which process is printing (for multi-GPU runs)
     process = os.environ.get("CUDA_VISIBLE_DEVICES")
 
+    print(f"{process}: video: {args.video_path}")
+
     # Process videotype into a list of extensions
     videotype = [ext.strip() for ext in args.videotype.split(",") if ext.strip()]
     args.videotype = videotype
@@ -132,7 +134,7 @@ def main():
 
     # ── Discover videos ─────────────────────────────────────────────────
     all_videos = find_videos(args.video_dir, args.videotype)
-    if not args.video_path:
+    if args.video_path is None:
         print(f"{process}: Found {len(all_videos)} video(s) total")
 
     if not all_videos:
@@ -140,7 +142,7 @@ def main():
         sys.exit(1)
 
     # ── Case of passing a single video explicitely───────────────────────
-    if args.video_path:
+    if args.video_path is not None:
         print(f"{process}: Processing single video: {args.video_path}")
         videos_to_process = [args.video_path]
     # ── Array mode: pick one video ──────────────────────────────────────
