@@ -111,7 +111,8 @@ def main():
     # Keep track of which process is printing (for multi-GPU runs)
     process = os.environ.get("CUDA_VISIBLE_DEVICES")
 
-    print(f"{process}: video: {args.video_path}")
+    print(f"{process}: argv: {' '.join(sys.argv)}")
+    print(f"{process}: array_mode={args.array_mode} video_path={args.video_path!r}")
 
     # Process videotype into a list of extensions
     videotype = [ext.strip() for ext in args.videotype.split(",") if ext.strip()]
