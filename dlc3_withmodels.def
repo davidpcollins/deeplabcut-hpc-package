@@ -2,8 +2,7 @@ Bootstrap: docker
 From: nvidia/cuda:12.4.1-cudnn-runtime-ubuntu22.04
 
 %labels
-    Author OpenAI
-    Description DeepLabCut 3.x production-grade offline HPC image with writable runtime cache fallback
+    Description DeepLabCut 3.x offline HPC image with writable runtime cache fallback
 
 %environment
     # Runtime cache policy:
