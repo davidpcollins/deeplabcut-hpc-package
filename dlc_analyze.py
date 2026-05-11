@@ -118,6 +118,12 @@ def main():
         default="uncertain",
         help="algorithm to use for outlier frame extraction. Options: 'uncertain' (default), 'jump', 'fitting', 'manual'",
     )
+    parser.add_argument(
+        "--p_bound",
+        type=float,
+        default=0.1,
+        help="Likelihood cutoff for identifying outliers",
+    )
 
     args = parser.parse_args()
 
@@ -221,6 +227,7 @@ def main():
             shuffle=args.shuffle,
             trainingsetindex=args.trainingsetindex,
             outlieralgorithm=args.outlier_algorithm,
+            p_bound=args.p_bound,  # below this likelihood value, will count as outlier
             automatic=True,  # No user feedback
         )
 
