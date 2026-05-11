@@ -113,7 +113,7 @@ def main():
         help="extract outlier frames for label correction on local machine",
     )
     parser.add_argument(
-        "outlier_algorithm",
+        "--outlier_algorithm",
         type=str,
         default="uncertain",
         help="algorithm to use for outlier frame extraction. Options: 'uncertain' (default), 'jump', 'fitting', 'manual'",
