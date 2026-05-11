@@ -221,6 +221,7 @@ def main():
             shuffle=args.shuffle,
             trainingsetindex=args.trainingsetindex,
             outlieralgorithm=args.outlier_algorithm,
+            automatic=True,  # No user feedback
         )
 
     print(f"\n{process}: ✓ Video analysis complete.")
