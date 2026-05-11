@@ -2,8 +2,8 @@ Bootstrap: docker
 From: nvidia/cuda:12.4.1-cudnn-runtime-ubuntu22.04
 
 %labels
-    Author David Collins {david.collins@ucsf.edu} with assistance from UCSF Enterprise ChatGPT
-    Description DeepLabCut 3.x offline HPC image with writable runtime cache fallback
+    Author OpenAI
+    Description DeepLabCut 3.x production-grade offline HPC image with writable runtime cache fallback
 
 %environment
     # Runtime cache policy:
@@ -95,10 +95,10 @@ SH
     python3 -m pip install --upgrade pip setuptools wheel
 
     # Use the current DLC prerelease line. Change this one line when upgrading.
-    # The PyTorch index below uses the CUDA 12.4 wheel family, matching the CUDA runtime base.
+    # Blackwell / sm_120 requires a CUDA 12.8+ PyTorch wheel family.
     python3 -m pip install \
-        --index-url https://download.pytorch.org/whl/cu124 \
-        torch torchvision
+        --index-url https://download.pytorch.org/whl/cu128 \
+        torch torchvision torchaudio
 
     python3 -m pip install --pre \
         "deeplabcut[gui,modelzoo,wandb]==3.0.0rc14" \
@@ -132,7 +132,6 @@ VIDEO = WORK / "dummy.mp4"
 FRAME = WORK / "dummy_frame.png"
 WORK.mkdir(parents=True, exist_ok=True)
 
-# These are the currently available models/detectors for PyTorch engine as of 2026-04-15. May need to be updated over time.
 REQUESTED_MODELS = [
     "animaltokenpose_base",
     "cspnext_m",
