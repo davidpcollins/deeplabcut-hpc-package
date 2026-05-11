@@ -219,7 +219,7 @@ def main():
             args.config_path,
             videos=videos_to_process,
             shuffle=args.shuffle,
-            trainingsetindex=args.traingsetindex,
+            trainingsetindex=args.trainingsetindex,
             outlieralgorithm=args.outlier_algorithm,
         )
 
