@@ -106,6 +106,19 @@ def main():
         default=False,
         help="Skip analysis step and only do filtering/video creation (default: False)",
     )
+    parser.add_argument(
+        "--extract_outliers",
+        action="store_true",
+        default=False,
+        help="extract outlier frames for label correction on local machine",
+    )
+    parser.add_argument(
+        "outlier_algorithm",
+        type=str,
+        default="uncertain",
+        help="algorithm to use for outlier frame extraction. Options: 'uncertain' (default), 'jump', 'fitting', 'manual'",
+    )
+
     args = parser.parse_args()
 
     # Keep track of which process is printing (for multi-GPU runs)
@@ -198,6 +211,16 @@ def main():
             draw_skeleton=True,
             color_by="bodypart",
             dotsize=3,  # it seems that create_labeled_video() ignores config.yaml on this
+        )
+    # ── Extract outlier frames ───────────────────────────────────────────
+    if args.extract_outliers:
+        print(f"\n{process}: Extracting outlier frames...")
+        deeplabcut.extract_outlier_frames(
+            args.config_path,
+            videos=videos_to_process,
+            shuffle=args.shuffle,
+            trainingsetindex=args.traingsetindex,
+            outlieralgorithm=args.outlier_algorithm,
         )
 
     print(f"\n{process}: ✓ Video analysis complete.")
