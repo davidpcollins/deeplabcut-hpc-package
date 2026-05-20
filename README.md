@@ -16,8 +16,9 @@ dlc_train.py                 # Python: train + evaluate network
 dlc_analyze.py               # Python: batch video analysis
 dlc_head_direction_batch.py  # Python: head-direction from .h5 files
 slurm_train.sh               # SLURM: training (1 GPU)
-slurm_analyze.sh             # SLURM: analyse all videos sequentially
-slurm_analyze_array.sh       # SLURM: analyse videos in parallel (array job)
+slurm_analyze.sh             # SLURM: analyze all videos sequentially
+slurm_analyze_array.sh       # SLURM: analyze videos in parallel (array job)
+slurm_multiGPU_array.sh      # SLURM: analyze multiple videos per node using separate GPUs (alternative to array job)
 README.md
 ```
 
