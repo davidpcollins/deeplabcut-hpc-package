@@ -38,9 +38,10 @@ echo "Start time  : $(date)"
 # Load Apptainer if it's a module on your cluster
 module load apptainer 2>/dev/null || true
 
-# --nv  enables NVIDIA GPU passthrough
 # --bind mounts the filesystem so the container can see your data
-apptainer exec --bind /scratch/user/davcollins:/scratch/user/davcollins \
+apptainer exec \
+    --bind /scratch/path/to/your/data:/scratch/path/to/your/data \
+    --bind /home/path/to/your/code:/home/path/to/your/code \
     "$DLC_SIF" \
         python "${SCRIPTS_DIR}/dlc_add_videos.py" \
         --config_path "$CONFIG" \

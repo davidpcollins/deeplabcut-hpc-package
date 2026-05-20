@@ -20,6 +20,8 @@
 #      2.  Create your DLC project + label frames on your workstation
 #      3.  Copy the project directory to the cluster
 #      4.  Edit the paths below
+#      5.  Edit the --bind commands below if needed
+#      6.  Edit the flags passed to dlc_train.py (e.g. --shuffle 1, --method "bu")
 # =====================================================================
 
 # ── Paths (EDIT THESE) ──────────────────────────────────────────────
@@ -45,9 +47,8 @@ module load apptainer 2>/dev/null || true
 # Need a separate --bind for each mount point (e.g. one for /scratch and one for /home)
 # Check dlc_train.py for additional arguments (e.g. --shuffle, --maxiters)
 apptainer exec --nv \
-    --bind /path/to/your/data:/path/to/your/data \
-    --env TORCH_HOME=/root/.cache/torch \
-    --env HF_HOME=/root/.cache/huggingface \    
+    --bind /scratch/path/to/your/data:/scratch/path/to/your/data \
+    --bind /home/path/to/your/code:/scratch/path/to/your/code \  
     "$DLC_SIF" \
     python "${SCRIPTS_DIR}/dlc_train.py" "$CONFIG" \
         --shuffle 1

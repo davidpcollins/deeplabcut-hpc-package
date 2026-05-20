@@ -1,14 +1,14 @@
-# DeepLabCut 3 — HPC Deployment Guide
+# DeepLabCut 3 — HPC Guide
 
-Run DLC training and video analysis on a SLURM cluster with GPU nodes
-using Apptainer containers.
+Run DLC training and video inference on a HPC cluster with GPU nodes using Slurm
+and Apptainer images.
 
 ---
 
 ## Directory contents
 
 ```
-dlc3_nomodels.def            # Apptainer container definition - no cached models
+dlc3_nomodels.def            # Apptainer container definition - no cached models (need internet access to run)
 dlc3_withmodels.def          # Apptainer container definition with all available models cached (larger size)
 dlc_add_videos.py            # Python: add new videos to project on cluster
 dlc_cache_weights.py         # Cache the models you want to use on login node (use with dlc3_nomodels.sif image)
@@ -23,18 +23,18 @@ README.md
 
 ---
 
-## 1. Build or upload the Apptainer container
+## Step 1. Build or upload the Apptainer container
 
 Build once on a node with internet access and (fakeroot or sudo):
 
 ```bash
-# On a build node / login node with internet
-module load apptainer          # if needed on your cluster
+# On a login node with internet
+module load apptainer
 apptainer build dlc3.sif dlc3_withmodels.def
 ```
 
 The resulting `dlc3.sif` (~10 GB) is a read-only, portable image.
-Copy it to your cluster's shared filesystem (e.g. `/scratch` or `/projects`).
+Copy it to your cluster's shared filesystem (e.g. `/scratch`).
 
 For pre-built apptainer images: https://ucsf.box.com/s/cspfrac5r0a5beyk9o5fz3td7ohhlpqm
 
@@ -46,26 +46,22 @@ apptainer exec --nv dlc3.sif python -c \
      print(f'DLC {deeplabcut.__version__}'); \
      print(f'CUDA: {torch.cuda.is_available()}')"
 ```
-Should print the DLC version (3.0.0rc13 e.g.) and True if you have access to GPU
+Should print the DLC version (e.g. 3.0.0rc13) and True if you have access to GPU
 
 ---
 
-## 2. Prepare your project (on your workstation)
+## Step 2. Prepare your project (on your workstation)
 
 These steps require a display and should be done locally:
 
-1. Create the DLC project (`deeplabcut.create_new_project()`)
-2. Edit `config.yaml` — set `engine: pytorch`, bodyparts, etc.
+1. Create the DLC project (GUI or `deeplabcut.create_new_project()`)
+2. Edit `config.yaml` — set `batch_size`, select bodyparts, etc.
 3. Extract & label frames (`extract_frames`, `label_frames`)
-
-Then **copy the entire project directory** to the cluster:
-
+4. **copy the entire project directory** to the cluster:
 ```bash
 rsync -avz /local/Task-YourName-2026-03-18/ \
     username@cluster:/scratch/youruser/dlc_projects/Task/
 ```
-Note that your HPC may have different methods/rules for transferring data. 
-The important thing is to transfer entire project directory
 
 ---
 
@@ -83,14 +79,15 @@ Every `.sh` script has a `# ── Paths (EDIT THESE)` section. Update:
 Also update the `--bind` flag so Apptainer can see your data paths:
 
 ```bash
---bind /scratch/user/name:/scratch/user/name
+--bind /scratch/user/name:/scratch/user/name  # project drive
+--bind /home/user/name:/home/user/name  # code drive
 ```
 
 And change `--partition=gpu` to match your cluster's appropriate partition name.
 
 ---
 
-## 4. Submit jobs
+## Step 4. Submit jobs
 
 ### Training
 
@@ -98,8 +95,8 @@ And change `--partition=gpu` to match your cluster's appropriate partition name.
 sbatch slurm_train.sh
 ```
 
-This runs `dlc_train.py`, which builds the training dataset and over-
-writes the `pytorch_config.yaml` file according to the arguments you provide,
+This runs `dlc_train.py`, which builds the training dataset from pre-labeled images, 
+over-writes the `pytorch_config.yaml` file according to the arguments you provide,
 calls `deeplabcut.train_network()` then `deeplabcut.evaluate_network()`.
 
 ### Video analysis — sequential
@@ -125,9 +122,22 @@ sbatch slurm_analyze_array.sh
 Each array task processes one video on its own GPU(s). This is the fastest
 approach for large datasets.
 
+### Video analysis - parallel with array + multiple GPUs per job:
+
+```bash
+sbatch slurm_multigpu_array.sh
+```
+Works like `slurm_analyze_array.sh` but with the ability to reserve two GPUs per
+node and run independent jobs. Helpful if the HPC has restrictions on the number
+of simultaneous nodes that can be reserved.
+
+All of these video analysis scripts call `dlc_analyze.py`, which runs video 
+inference using the specified model and optionally filters predictions, creates 
+labeled videos, and extracts outlier frames
+
 ---
 
-## 5. Chain jobs with dependencies
+## Step 5. Chain jobs with dependencies
 
 You can chain the pipeline so each stage starts only after the previous
 one succeeds:
@@ -142,11 +152,11 @@ ANALYZE_JOB=$(sbatch --parsable --dependency=afterok:${TRAIN_JOB} slurm_analyze_
 
 ---
 
-## 6. Refining and retraining
+## Step 6. Refining and retraining
 
-After inspecting results, go back to your **workstation** to:
+After inspecting results, go back to your **local workstation** to:
 
-1. Extract outlier frames: `deeplabcut.extract_outlier_frames()`
+1. Extract outlier frames (if needed): `deeplabcut.extract_outlier_frames()`
 2. Refine labels: `deeplabcut.refine_labels()`
 3. Merge datasets: `deeplabcut.merge_datasets()`
 
@@ -169,21 +179,10 @@ training
 accompanying .sh file to do this on the cluster if you don't want to
 download/re-upload everything
 
-**Adjusting training length:** Edit `pytorch_config.yaml` on the cluster
-before submitting the training job. Use the `dlc_helpers.py` functions
-or edit the YAML directly:
-
-```bash
-# Quick edit from the command line
-apptainer exec dlc3.sif python -c "
-import yaml
-p = '/scratch/.../train/pytorch_config.yaml'
-cfg = yaml.safe_load(open(p))
-cfg['train_settings']['epochs'] = 500
-yaml.dump(cfg, open(p, 'w'), default_flow_style=False, sort_keys=False)
-print('Updated epochs to 500')
-"
-```
+**Adjusting batch size:** Commercial GPUs used on HPC nodes can handle
+higher batch sizes than consumer models. Anecdotally, `batch_size=128`
+works well and will not give memory issues with Nvidia L40S, while H100
+and H200 GPUs can usually handle `batch_size=256` or higher
 
 **Monitoring:**
 

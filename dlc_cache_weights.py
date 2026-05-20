@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """
-dlc_cache_weights.py — Pre-download model weights for offline HPC use.
+dlc_cache_weights.py — Pre-download model weights for offline HPC use. 
+For use with dlc3_nomodels.def-built .sif file
 
 DLC 3 downloads weights on first use from:
   1. timm (HuggingFace Hub)  — ImageNet-pretrained backbones (ResNet, HRNet, etc.)

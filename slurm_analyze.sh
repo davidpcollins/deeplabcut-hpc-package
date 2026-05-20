@@ -42,7 +42,8 @@ module load apptainer 2>/dev/null || true
 #   you may need multiple --bind statements to give the container access to all necessary paths.
 # Check dlc_analyze.py for additional arguments.
 apptainer exec --nv \
-    --bind /path/to/your/data:/path/to/your/data \
+    --bind /scratch/path/to/your/data:/scratch/path/to/your/data \
+    --bind /home/path/to/your/code:/home/path/to/your/code \
     "$DLC_SIF" \
     python "${SCRIPTS_DIR}/dlc_analyze.py" "$CONFIG" \
         --video_dir "$VIDEO_DIR" \
