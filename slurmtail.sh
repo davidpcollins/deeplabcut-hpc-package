@@ -308,13 +308,16 @@ tmux new-session -d -s "$SESSION_NAME" \
     -e "SLURMTAIL_SUBID=${SUB_ARRAY[0]}" \
     "bash '$SCRIPT_PATH' '$JOB_ID' '$LOGS_DIR'"
 
-# Split panes for remaining sub-jobs
+# Split panes for remaining sub-jobs; fall back to a new window if no space
 for (( i=1; i<NUM_SUBS; i++ )); do
-    tmux split-window -t "$SESSION_NAME" \
-        -e "SLURMTAIL_SUBID=${SUB_ARRAY[$i]}" \
-        "bash '$SCRIPT_PATH' '$JOB_ID' '$LOGS_DIR'"
-    # Re-tile after each split to keep things even
-    tmux select-layout -t "$SESSION_NAME" tiled
+    if ! tmux split-window -t "$SESSION_NAME" \
+            -e "SLURMTAIL_SUBID=${SUB_ARRAY[$i]}" \
+            "bash '$SCRIPT_PATH' '$JOB_ID' '$LOGS_DIR'" 2>/dev/null; then
+        tmux new-window -t "$SESSION_NAME" \
+            -e "SLURMTAIL_SUBID=${SUB_ARRAY[$i]}" \
+            "bash '$SCRIPT_PATH' '$JOB_ID' '$LOGS_DIR'"
+    fi
+    tmux select-layout -t "$SESSION_NAME" tiled 2>/dev/null || true
 done
 
 # Launch a hidden watcher pane that detects new sub-IDs and spawns panes
@@ -330,8 +333,11 @@ tmux split-window -t "$SESSION_NAME" -e "SLURMTAIL_WATCHER=1" \
                 KNOWN=\"\$KNOWN \$sid\"
                 tmux split-window -t \"${SESSION_NAME}\" \
                     -e \"SLURMTAIL_SUBID=\$sid\" \
+                    \"bash \\\"${SCRIPT_PATH}\\\" \\\"${JOB_ID}\\\" \\\"${LOGS_DIR}\\\"\" 2>/dev/null \
+                || tmux new-window -t \"${SESSION_NAME}\" \
+                    -e \"SLURMTAIL_SUBID=\$sid\" \
                     \"bash \\\"${SCRIPT_PATH}\\\" \\\"${JOB_ID}\\\" \\\"${LOGS_DIR}\\\"\"
-                tmux select-layout -t \"${SESSION_NAME}\" tiled
+                tmux select-layout -t \"${SESSION_NAME}\" tiled 2>/dev/null || true
             fi
         done
     done
