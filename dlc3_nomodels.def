@@ -8,7 +8,7 @@ From: nvcr.io/nvidia/pytorch:24.07-py3
 
 %post
     # ── Strategy ────────────────────────────────────────────────────────
-    # DLC 3.0 RC requires numpy<2.  The 24.07 base image ships numpy 1.x
+    # DLC requires numpy<2.  The 24.07 base image ships numpy 1.x
     # with all compiled extensions (torch, pandas, scipy, pyarrow) built
     # against the numpy 1.x ABI.  This is the only consistent combo.
     #
@@ -36,7 +36,7 @@ From: nvcr.io/nvidia/pytorch:24.07-py3
     pip install --no-cache-dir "opencv-python-headless>=4.8,<4.11"
 
     # ── DeepLabCut 3 ────────────────────────────────────────────────────
-    pip install --no-cache-dir --pre "deeplabcut[modelzoo]"
+    pip install --no-cache-dir "deeplabcut[modelzoo]==3.0.1"
 
     # ── Numpy 2.x pickle compatibility shim ─────────────────────────────
     # Creates a numpy._core package that re-exports from numpy.core,

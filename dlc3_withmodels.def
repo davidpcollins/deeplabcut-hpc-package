@@ -93,14 +93,14 @@ SH
 
     python3 -m pip install --upgrade pip setuptools wheel
 
-    # Use the current DLC prerelease line. Change this one line when upgrading.
+    # Pin the DLC release line. Change this one line when upgrading.
     # Blackwell / sm_120 requires a CUDA 12.8+ PyTorch wheel family.
     python3 -m pip install \
         --index-url https://download.pytorch.org/whl/cu128 \
         torch torchvision torchaudio
 
-    python3 -m pip install --pre \
-        "deeplabcut[gui,modelzoo,wandb]==3.0.0rc14" \
+    python3 -m pip install \
+        "deeplabcut[gui,modelzoo,wandb]==3.0.1" \
         pandas pyyaml pillow h5py scipy scikit-image matplotlib seaborn opencv-python-headless
 
     cat > /opt/dlc-prime/prime_deeplabcut_cache.py <<'PY'
